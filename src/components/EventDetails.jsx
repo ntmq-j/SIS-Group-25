@@ -103,7 +103,9 @@ export default function EventDetails({ event, joined, onJoin }) {
       >
         {isCreator
           ? 'You are hosting this event'
-          : joined
+          : joined === 'pending'
+            ? 'Request sent — awaiting host approval'
+            : joined === 'going'
             ? "You're going"
             : 'Join event'}
       </button>

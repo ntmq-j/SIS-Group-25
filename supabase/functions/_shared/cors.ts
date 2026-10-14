@@ -45,6 +45,9 @@ export function databaseError(error: { code?: string; message?: string } | null,
   if (error?.code === '23505') {
     return apiError('conflict', 'This request conflicts with an existing record.', 409);
   }
+  if (['22P02', '22007', '22008', '22023', '23502', '23503', '23514'].includes(error?.code ?? '')) {
+    return apiError('invalid_request', 'Check the required fields, time window and location, then try again.', 400);
+  }
 
   // Never forward raw Postgres error details or SQL/constraint names to the
   // browser. Keep the detailed error in server logs for developers instead.

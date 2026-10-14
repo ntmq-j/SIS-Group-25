@@ -35,7 +35,7 @@ npm ci --ignore-scripts
 npx supabase test db
 ```
 
-The database suite currently contains 386 pgTAP checks across authentication, availability, activities, events/RSVPs, realtime map, matching, blocks, reports, chat and the Phase 6 security audit.
+The database suite currently contains 387 pgTAP checks across authentication, availability, activities, events/RSVPs, realtime map, matching, blocks, reports, chat and the Phase 6 security audit.
 
 ## Architecture
 
@@ -43,6 +43,7 @@ The frontend uses Supabase Auth, PostgREST and Realtime directly for operations 
 
 - [Frontend/backend integration](docs/backend/frontend-integration.md)
 - [API contract](docs/backend/api-contract.md)
+- [Phase 6 readiness and remaining MVP gaps](docs/backend/phase6-readiness.md)
 - [Environment setup](docs/backend/environment-setup.md)
 - [Release checklist](docs/backend/release-checklist.md)
 - [Backend contribution guide](docs/backend/CONTRIBUTING.md)

@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 
 begin;
-select plan(25);
+select plan(26);
 
 -- Every application table is protected by RLS, including the server-only
 -- message body table. Reference tables intentionally keep public read
@@ -146,6 +146,16 @@ select ok(
   exists (select 1 from pg_trigger where tgrelid = 'public.messages'::regclass and tgname = 'on_message_write_guard')
   and exists (select 1 from pg_trigger where tgrelid = 'public.reports'::regclass and tgname = 'on_report_write_guard'),
   'chat and moderation guard triggers are installed'
+);
+select ok(
+  not has_function_privilege('anon', 'public.email_domain(text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.email_domain(text)', 'execute')
+  and not has_function_privilege('anon', 'public.guard_activity_write()', 'execute')
+  and not has_function_privilege('authenticated', 'public.guard_activity_write()', 'execute')
+  and not has_function_privilege('anon', 'public.create_activity_conversation()', 'execute')
+  and not has_function_privilege('authenticated', 'public.create_activity_conversation()', 'execute')
+  and has_function_privilege('authenticated', 'public.active_map_points(uuid[], uuid, boolean)', 'execute'),
+  'internal trigger helpers are not RPC-callable while the map RPC remains available'
 );
 
 select * from finish();

@@ -14,8 +14,9 @@ export default function CalendarView() {
 
   const refresh = useCallback(async () => {
     try {
+      const nextEvents = await loadCalendarEvents();
+      setEvents(nextEvents);
       setError(null);
-      setEvents(await loadCalendarEvents());
     } catch (loadError) {
       setError(loadError?.message ?? 'Unable to load your events.');
     } finally {
@@ -24,9 +25,14 @@ export default function CalendarView() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    // Initial loading is an intentional synchronization with the remote
+    // calendar; the subscription below refreshes it after database changes.
+    const initialLoad = window.setTimeout(() => { void refresh(); }, 0);
     const unsubscribe = subscribeToCalendarChanges(() => { void refresh(); });
-    return unsubscribe;
+    return () => {
+      window.clearTimeout(initialLoad);
+      unsubscribe();
+    };
   }, [refresh]);
 
   const handleLeave = async (event) => {

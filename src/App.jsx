@@ -12,7 +12,6 @@ import CampusMap from './components/CampusMap';
 import LegalPage from './components/LegalPage';
 import Profile from './components/Profile';
 import CalendarView from './components/CalendarView';
-import UserProfileModal from './components/UserProfileModal';
 
 import { supabase } from './lib/supabaseClient';
 import { CURRENT_USER, SAMPLE_EVENT } from './constants/seed';
@@ -51,7 +50,6 @@ export default function App() {
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [eventError, setEventError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
 
   const refreshRemoteFeed = useCallback(async () => {
@@ -180,7 +178,7 @@ export default function App() {
         detail: item.source === 'official_event' ? 'Approved organisation event' : 'Verified Recess user',
       },
     });
-    setJoined(false);
+    setJoined(null);
     setPage('event');
   };
 
@@ -190,9 +188,13 @@ export default function App() {
       return;
     }
     try {
-      if (selectedEvent.source === 'official_event') await rsvpToEvent(selectedEvent.remoteId);
-      else await joinActivity(selectedEvent.remoteId);
-      setJoined(true);
+      if (selectedEvent.source === 'official_event') {
+        await rsvpToEvent(selectedEvent.remoteId);
+        setJoined('going');
+      } else {
+        await joinActivity(selectedEvent.remoteId);
+        setJoined('pending');
+      }
     } catch (error) {
       const message = error?.message ?? '';
       setEventError(message.includes('[forbidden]')
@@ -328,7 +330,6 @@ export default function App() {
                       key={item.id} 
                       item={item} 
                       onOpen={() => handleOpenEvent(item)} 
-                      onOpenProfile={(userId) => setSelectedProfileUserId(userId)} 
                       onEdit={(item) => handleEditEvent(item)}
                       onDelete={(remoteId) => handleDeleteEvent(remoteId)}
                     />
@@ -343,11 +344,6 @@ export default function App() {
 
         <footer className="text-center text-[11px] text-neutral-400 mt-12 pt-6 border-t border-neutral-100">Recess v1.3 · Campus coordination for UTS</footer>
       </div>
-
-      <UserProfileModal 
-        userId={selectedProfileUserId} 
-        onClose={() => setSelectedProfileUserId(null)} 
-      />
 
     </div>
   );

@@ -3,10 +3,10 @@
 Phase 3 backend task: small, spontaneous meetups that any verified user can
 create and others can join (PRD 8.5, 8.10).
 
-Same architecture as Phases 1-2: every rule is enforced by the database
-(constraints, triggers, RLS), not an Edge Function. The frontend talks to
-`public.activities` and `public.activity_participants` directly through
-`supabase-js`.
+Every rule is enforced by the database (constraints, triggers, RLS), not
+trusted to the Edge Function alone. The frontend calls `create-activity` for
+creation and uses RLS-protected direct queries for editing, cancelling and
+joining.
 
 ## Tables
 

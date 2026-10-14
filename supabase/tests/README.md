@@ -63,7 +63,7 @@ are exercised for real in Phase 1.)
 ## CI
 
 `.github/workflows/ci.yml` runs the frontend lint/build and the complete
-local Supabase pgTAP suite on pushes and pull requests. The workflow starts
+local Supabase pgTAP suite (currently 387 checks) on pushes and pull requests. The workflow starts
 an isolated Supabase stack on the GitHub runner; it does not connect to or
 modify `recess-dev`.
 
