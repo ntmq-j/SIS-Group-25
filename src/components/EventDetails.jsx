@@ -24,6 +24,11 @@ export default function EventDetails({ event, joined, onJoin }) {
               {description}
             </p>
           )}
+          {Number.isFinite(event.participantLimit) && event.participantLimit > 0 && (
+            <p className="mt-3 text-xs font-medium text-neutral-500">
+              {event.participantCount ?? 0} / {event.participantLimit} going
+            </p>
+          )}
         </div>
 
         <div className="space-y-4 border-b border-neutral-100 p-5">
@@ -109,6 +114,8 @@ export default function EventDetails({ event, joined, onJoin }) {
               ? 'Request sent — awaiting host approval'
               : joined === 'going'
                 ? "You're going"
+                : joined === 'waitlisted'
+                  ? "You're on the waitlist"
                 : joined === 'interested'
                   ? "You're interested"
                   : joined === 'declined'

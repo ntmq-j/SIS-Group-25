@@ -87,7 +87,7 @@ export default function CalendarView() {
                       <CheckCircle2 size={12} />
                       {event.isCreator
                         ? 'Hosting'
-                        : event.rsvpStatus === 'interested' ? 'Interested' : 'Accepted'}
+                        : event.rsvpStatus === 'interested' ? 'Interested' : event.rsvpStatus === 'waitlisted' ? 'Waitlisted' : 'Accepted'}
                     </span>
                     <span className="text-xs text-slate-400">Hosted by {event.host}</span>
                   </div>

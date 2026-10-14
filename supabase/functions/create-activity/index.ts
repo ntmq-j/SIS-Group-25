@@ -1,4 +1,10 @@
-import { apiError, apiSuccess, corsHeaders, databaseError } from '../_shared/cors.ts';
+import {
+  apiError,
+  apiSuccess,
+  corsHeaders,
+  databaseError,
+  withRequestLogging,
+} from '../_shared/cors.ts';
 import { requireUser } from '../_shared/supabase.ts';
 
 const allowedCategories = new Set([
@@ -8,16 +14,16 @@ const allowedCategories = new Set([
 const maxTags = 6;
 const maxTagLength = 24;
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (request.method !== 'POST') return apiError('method_not_allowed', 'Use POST to create an activity.', 405);
+Deno.serve(withRequestLogging('create-activity', async (request) => {
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(request) });
+  if (request.method !== 'POST') return apiError(request, 'method_not_allowed', 'Use POST to create an activity.', 405);
 
   const { client, user } = await requireUser(request);
-  if (!client || !user) return apiError('unauthorized', 'Sign in to create an activity.', 401);
+  if (!client || !user) return apiError(request, 'unauthorized', 'Sign in to create an activity.', 401);
 
   try {
     const body = await request.json();
-    const tags = Array.isArray(body.tags)
+    const tags: string[] = Array.isArray(body.tags)
       ? body.tags
         .filter((tag: unknown): tag is string => typeof tag === 'string')
         .map((tag: string) => tag.trim().replace(/\s+/g, ' '))
@@ -38,10 +44,10 @@ Deno.serve(async (request) => {
     };
 
     if (!payload.area_id || !payload.title || !allowedCategories.has(payload.category)) {
-      return apiError('invalid_request', 'area_id, title and a valid category are required.', 400);
+      return apiError(request, 'invalid_request', 'area_id, title and a valid category are required.', 400);
     }
     if (tags.length > maxTags || tags.some((tag) => tag.length > maxTagLength)) {
-      return apiError('invalid_request', `Tags must contain at most ${maxTags} values of ${maxTagLength} characters or fewer.`, 400);
+      return apiError(request, 'invalid_request', `Tags must contain at most ${maxTags} values of ${maxTagLength} characters or fewer.`, 400);
     }
 
     const { data, error } = await client
@@ -50,9 +56,9 @@ Deno.serve(async (request) => {
       .select('id, title, description, category, tags, start_time, end_time, participant_limit, location_label, latitude, longitude, area_id')
       .single();
 
-    if (error) return databaseError(error, 'Unable to create this activity.');
-    return apiSuccess(data, 201);
+    if (error) return databaseError(request, error, 'Unable to create this activity.');
+    return apiSuccess(request, data, 201);
   } catch (error) {
-    return apiError('invalid_request', error instanceof SyntaxError ? 'Request body must be valid JSON.' : 'Unable to create this activity.', 400);
+    return apiError(request, 'invalid_request', error instanceof SyntaxError ? 'Request body must be valid JSON.' : 'Unable to create this activity.', 400);
   }
-});
+}));

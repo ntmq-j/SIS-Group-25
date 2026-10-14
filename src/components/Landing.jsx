@@ -1,9 +1,11 @@
+import BrandMark from './BrandMark';
+
 export default function Landing({ onGetStarted }) {
     return (
-      <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-4 font-sans">
+      <div className="min-h-screen bg-brand-paper flex flex-col items-center justify-center p-4 font-sans">
         <div className="max-w-md w-full text-center space-y-6">
-          <div className="inline-block bg-orange-500 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-            UTS Campus Coordination
+          <div className="flex justify-center">
+            <BrandMark />
           </div>
           <h1 className="text-4xl font-extrabold text-neutral-900 tracking-tight">
             Welcome to Recess
@@ -14,7 +16,7 @@ export default function Landing({ onGetStarted }) {
           <div className="space-y-3 pt-4">
             <button
               onClick={() => onGetStarted('signin')}
-              className="w-full bg-neutral-900 text-white font-medium py-3 rounded-xl hover:bg-neutral-800 transition shadow-sm"
+              className="w-full bg-orange-600 text-white font-medium py-3 rounded-xl hover:bg-orange-700 transition shadow-sm"
             >
               Sign In
             </button>

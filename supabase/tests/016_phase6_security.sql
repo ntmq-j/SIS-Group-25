@@ -18,7 +18,7 @@ select ok(
        'profiles', 'interests', 'profile_interests', 'availabilities',
        'activities', 'activity_participants', 'official_events',
        'event_rsvps', 'blocks', 'connections', 'conversations',
-       'messages', 'message_deleted_bodies', 'reports'
+       'messages', 'message_deleted_bodies', 'reports', 'status_posts'
      )),
   'all application tables have RLS enabled'
 );
@@ -33,10 +33,10 @@ select is(
        'profiles', 'interests', 'profile_interests', 'availabilities',
        'activities', 'activity_participants', 'official_events',
        'event_rsvps', 'blocks', 'connections', 'conversations',
-       'messages', 'message_deleted_bodies', 'reports'
+       'messages', 'message_deleted_bodies', 'reports', 'status_posts'
      )),
-  18::bigint,
-  'the security audit covers all 18 application tables'
+  19::bigint,
+  'the security audit covers all 19 application tables'
 );
 
 -- Anonymous clients must not read identity, activity, chat, RSVP or
@@ -54,7 +54,8 @@ select ok(
   and not has_table_privilege('anon', 'public.conversations', 'select')
   and not has_table_privilege('anon', 'public.messages', 'select')
   and not has_table_privilege('anon', 'public.message_deleted_bodies', 'select')
-  and not has_table_privilege('anon', 'public.reports', 'select'),
+  and not has_table_privilege('anon', 'public.reports', 'select')
+  and not has_table_privilege('anon', 'public.status_posts', 'select'),
   'anon has no direct access to sensitive application tables'
 );
 
@@ -79,6 +80,7 @@ select ok(
   and exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'activity_participants')
   and exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'official_events')
   and exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'event_rsvps')
+  and exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'status_posts')
   and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'availabilities'),
   'realtime publishes map-safe changes but not raw availability'
 );

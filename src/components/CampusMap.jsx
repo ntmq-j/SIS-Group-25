@@ -38,7 +38,7 @@ function FitToEvents({ events }) {
  * Teardrop pin filled with the category colour.
  * Bottom tip sits exactly on the coordinate, so the point stays accurate.
  */
-function createCategoryPin(color, width = 28) {
+function createCategoryPin(color, emoji, width = 28) {
   const height = Math.round(width / 0.7);
 
   return L.divIcon({
@@ -46,7 +46,7 @@ function createCategoryPin(color, width = 28) {
     // which paints a white box behind every marker.
     className: 'recess-category-pin',
     html: `
-      <div style="width:${width}px;height:${height}px;background:transparent;border:0;">
+      <div style="position:relative;width:${width}px;height:${height}px;background:transparent;border:0;">
         <svg width="${width}" height="${height}" viewBox="5 2 14 20"
              xmlns="http://www.w3.org/2000/svg"
              style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25));"
@@ -54,6 +54,7 @@ function createCategoryPin(color, width = 28) {
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
                 fill="${color}" />
         </svg>
+        <span aria-hidden="true" style="position:absolute;top:4px;left:50%;display:flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;background:#fff;font:10px/1 system-ui,sans-serif;transform:translateX(-50%);box-shadow:0 1px 2px rgba(0,0,0,.18)">${emoji}</span>
       </div>
     `,
     iconSize: [width, height],
@@ -75,11 +76,15 @@ function createPresencePin(count) {
 const pinByCategory = Object.fromEntries(
   CATEGORY_OPTIONS.map(category => [
     category.id,
-    createCategoryPin(category.hex),
+    createCategoryPin(category.hex, category.emoji),
   ])
 );
 
-export default function CampusMap({ events = [] }) {
+export default function CampusMap({
+  events = [],
+  showHeader = true,
+  showLegend = true,
+}) {
   const visiblePoints = events.filter(point =>
     isValidCoordinates(point.latitude, point.longitude)
   );
@@ -100,27 +105,29 @@ export default function CampusMap({ events = [] }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-        <div>
-          <p className="text-sm font-bold text-neutral-900">Campus event map</p>
-          <p className="text-[11px] text-neutral-400">
-            Pan and zoom to explore meeting points
-          </p>
-        </div>
+      {showHeader && (
+        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
+          <div>
+            <p className="text-sm font-bold text-neutral-900">Campus event map</p>
+            <p className="text-[11px] text-neutral-400">
+              Pan and zoom to explore meeting points
+            </p>
+          </div>
 
-        <div className="text-right text-[11px] font-semibold text-neutral-500">
-          <span className="rounded-full bg-orange-50 px-2 py-1 text-orange-600">
-            {visibleEvents.length} event{visibleEvents.length === 1 ? '' : 's'}
-          </span>
-          {visiblePresence.length > 0 && (
-            <span className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-              {visiblePresence.length} active area{visiblePresence.length === 1 ? '' : 's'}
+          <div className="text-right text-[11px] font-semibold text-neutral-500">
+            <span className="rounded-full bg-orange-50 px-2 py-1 text-orange-600">
+              {visibleEvents.length} event{visibleEvents.length === 1 ? '' : 's'}
             </span>
-          )}
+            {visiblePresence.length > 0 && (
+              <span className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                {visiblePresence.length} active area{visiblePresence.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {legend.length > 0 && (
+      {showLegend && legend.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-neutral-100 px-4 py-2.5">
           {legend.map(category => (
             <span

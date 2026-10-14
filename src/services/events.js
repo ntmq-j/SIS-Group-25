@@ -88,6 +88,19 @@ export async function rsvpToEvent(eventId, status = 'going') {
   });
 }
 
+export async function loadOfficialEventRsvpInfo(eventId) {
+  const [{ data: event, error: eventError }, { data: counts, error: countsError }] = await Promise.all([
+    supabase.from('official_events').select('participant_limit').eq('id', eventId).single(),
+    supabase.rpc('event_rsvp_counts', { p_event_id: eventId }),
+  ]);
+  if (eventError) throw eventError;
+  if (countsError) throw countsError;
+  return {
+    participantLimit: event.participant_limit,
+    participantCount: counts?.[0]?.going_count ?? 0,
+  };
+}
+
 export async function loadMyEventParticipation(source, eventId) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
@@ -122,7 +135,8 @@ export async function loadCalendarEvents() {
     supabase
       .from('event_rsvps')
       .select('event_id, status, created_at')
-      .in('status', ['going', 'interested']),
+      .eq('user_id', user.id)
+      .in('status', ['going', 'interested', 'waitlisted']),
     supabase
       .from('activity_participants')
       .select('activity_id, status, created_at, is_creator')
@@ -174,6 +188,7 @@ export async function loadCalendarEvents() {
       endTime: event.end_time,
       host: event.organisations?.name?.trim() || 'Organisation event',
       rsvpStatus: rsvp?.status ?? 'going',
+      participantLimit: event.participant_limit,
       isCreator: false,
     };
   });

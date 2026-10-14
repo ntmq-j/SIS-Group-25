@@ -103,8 +103,8 @@ The current frontend integration uses these authenticated POST routes:
 | Route | Success status | Purpose |
 |---|---:|---|
 | `/functions/v1/create-activity` | `201` | Create a verified user's activity after validating tags, area and time window. |
-| `/functions/v1/create-official-event` | `201` | Create an organisation event subject to organisation-admin RLS and area validation. |
-| `/functions/v1/rsvp-to-event` | `200` | Create or update the caller's `going`/`interested` RSVP. |
+| `/functions/v1/create-official-event` | `201` | Create an organisation event subject to organisation-admin RLS and area validation; `participant_limit` is optional. |
+| `/functions/v1/rsvp-to-event` | `200` | Create or update the caller's `going`/`interested` RSVP; a full event returns a successful `waitlisted` RSVP status. |
 | `/functions/v1/refresh-suggestions` | `200` | Return at most three deterministic matching suggestions. |
 
 All four routes return the documented success/error envelope. The first

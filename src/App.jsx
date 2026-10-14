@@ -1,27 +1,30 @@
-import { useCallback, useEffect, useState } from 'react';
-import Landing from './components/Landing';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import Auth from './components/Auth';
 import Header from './components/Header';
 import PresenceStrip from './components/PresenceStrip';
 import StatusInput from './components/StatusInput';
 import StatusCard from './components/StatusCard';
 import EventCard from './components/EventCard';
-import EventForm from './components/EventForm';
-import EventDetails from './components/EventDetails';
-import CampusMap from './components/CampusMap';
 import LegalPage from './components/LegalPage';
-import Profile from './components/Profile';
-import CalendarView from './components/CalendarView';
+
+const EventForm = lazy(() => import('./components/EventForm'));
+const EventDetails = lazy(() => import('./components/EventDetails'));
+const CampusMap = lazy(() => import('./components/CampusMap'));
+const Profile = lazy(() => import('./components/Profile'));
+const CalendarView = lazy(() => import('./components/CalendarView'));
+const CommunityHub = lazy(() => import('./components/CommunityHub'));
+const LandingPrototype = lazy(() => import('./components/LandingPrototype'));
 
 import { supabase } from './lib/supabaseClient';
 import { CURRENT_USER, SAMPLE_EVENT } from './constants/seed';
-import { makeId, initials } from './utils/helpers';
+import { initials } from './utils/helpers';
 import {
   createActivity,
   cancelActivity,
   joinActivity,
   loadActiveMapPoints,
   loadAreas,
+  loadOfficialEventRsvpInfo,
   mapPointToMapItem,
   mapPointToFeedItem,
   rsvpToEvent,
@@ -29,14 +32,19 @@ import {
   subscribeToMapChanges,
   updateActivity,
 } from './services/events';
+import { createStatusPost, loadStatusPosts, subscribeToStatusPosts } from './services/community';
 
 export default function App() {
   const [page, setPage] = useState(() => {
     if (window.location.pathname === '/terms') return 'terms';
     if (window.location.pathname === '/privacy') return 'privacy';
+    const requestedAuthMode = new URLSearchParams(window.location.search).get('auth');
+    if (requestedAuthMode === 'signin' || requestedAuthMode === 'signup') return 'auth';
     return 'landing';
   });
-  const [authMode, setAuthMode] = useState('signin');
+  const [authMode, setAuthMode] = useState(() => (
+    new URLSearchParams(window.location.search).get('auth') === 'signup' ? 'signup' : 'signin'
+  ));
   const [legalReturnPage, setLegalReturnPage] = useState('landing');
   const [session, setSession] = useState(null);
   // Feed events come from the privacy-preserving active_map_points RPC. Do
@@ -52,6 +60,8 @@ export default function App() {
   const [eventError, setEventError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [editingEvent, setEditingEvent] = useState(null);
+  const [statusError, setStatusError] = useState(null);
+  const [signOutError, setSignOutError] = useState(null);
 
   const refreshRemoteFeed = useCallback(async () => {
     if (!session) return;
@@ -94,7 +104,11 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (nextSession) setPage('feed');
-      else setPage('landing');
+      else setPage((currentPage) => (
+        currentPage === 'terms' || currentPage === 'privacy' || currentPage === 'auth'
+          ? currentPage
+          : 'landing'
+      ));
     });
 
     return () => {
@@ -111,19 +125,72 @@ export default function App() {
     }).catch((error) => {
       if (active) setEventError(error?.message ?? 'Unable to load approved areas.');
     });
-    const refreshTimer = window.setTimeout(() => { void refreshRemoteFeed(); }, 0);
+    const refreshTimer = window.setTimeout(async () => {
+      try {
+        const [statusPosts] = await Promise.all([loadStatusPosts(), refreshRemoteFeed()]);
+        if (active) setFeed((previous) => [
+          ...statusPosts,
+          ...previous.filter((item) => item.type === 'event'),
+        ]);
+      } catch (error) {
+        if (active) setStatusError(error?.message ?? 'Unable to load status updates.');
+      }
+    }, 0);
     const unsubscribe = subscribeToMapChanges(() => { void refreshRemoteFeed(); });
+    const unsubscribeStatuses = subscribeToStatusPosts(async () => {
+      try {
+        const statusPosts = await loadStatusPosts();
+        if (active) setFeed((previous) => [
+          ...statusPosts,
+          ...previous.filter((item) => item.type === 'event'),
+        ]);
+      } catch (error) {
+        if (active) setStatusError(error?.message ?? 'Unable to refresh status updates.');
+      }
+    });
     return () => {
       active = false;
       window.clearTimeout(refreshTimer);
       unsubscribe();
+      unsubscribeStatuses();
     };
   }, [session, refreshRemoteFeed]);
 
-  const currentUserName = session?.user?.user_metadata?.display_name || CURRENT_USER;
+  useEffect(() => {
+    if (!session || page !== 'event' || selectedEvent?.source !== 'official_event' || !selectedEvent.remoteId) return undefined;
+    let active = true;
+    const refreshRsvp = async () => {
+      try {
+        const [status, info] = await Promise.all([
+          loadMyEventParticipation('official_event', selectedEvent.remoteId),
+          loadOfficialEventRsvpInfo(selectedEvent.remoteId),
+        ]);
+        if (!active) return;
+        setJoined(status);
+        setSelectedEvent((current) => current?.remoteId === selectedEvent.remoteId ? { ...current, ...info } : current);
+      } catch (error) {
+        if (active) setEventError(error?.message ?? 'Unable to refresh this event.');
+      }
+    };
+    const initialRefresh = window.setTimeout(() => { void refreshRsvp(); }, 0);
+    const unsubscribe = subscribeToMapChanges(() => { void refreshRsvp(); });
+    return () => {
+      active = false;
+      window.clearTimeout(initialRefresh);
+      unsubscribe();
+    };
+  }, [page, selectedEvent?.remoteId, selectedEvent?.source, session]);
 
-  const handlePostStatus = (text) => {
-    setFeed((previous) => [{ id: makeId(), type: 'status', text, time: 'Just now', author: currentUserName }, ...previous]);
+  const handlePostStatus = async (text) => {
+    setStatusError(null);
+    try {
+      await createStatusPost(text);
+      const statusPosts = await loadStatusPosts();
+      setFeed((previous) => [...statusPosts, ...previous.filter((item) => item.type === 'event')]);
+    } catch (error) {
+      setStatusError(error?.message ?? 'Unable to publish your status.');
+      return false;
+    }
   };
 
   // tags are now part of the payload and must be written to Supabase.
@@ -173,6 +240,8 @@ export default function App() {
       time: item.time,
       category: item.category ?? 'other',
       tags: item.tags ?? [],
+      participantCount: item.participantCount ?? 0,
+      participantLimit: item.participantLimit ?? null,
       host: {
         name: item.author,
         initials: initials(item.author),
@@ -195,8 +264,10 @@ export default function App() {
     }
     try {
       if (selectedEvent.source === 'official_event') {
-        await rsvpToEvent(selectedEvent.remoteId);
-        setJoined('going');
+        const rsvp = await rsvpToEvent(selectedEvent.remoteId);
+        setJoined(rsvp?.status ?? 'going');
+        const info = await loadOfficialEventRsvpInfo(selectedEvent.remoteId);
+        setSelectedEvent((current) => current?.remoteId === selectedEvent.remoteId ? { ...current, ...info } : current);
       } else {
         await joinActivity(selectedEvent.remoteId);
         setJoined('pending');
@@ -242,18 +313,28 @@ export default function App() {
     navigate(returnPage, '/');
   };
 
+  const handleSignOut = async () => {
+    setSignOutError(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) setSignOutError(error.message || 'Unable to sign out. Please try again.');
+  };
+
   if (page === 'terms' || page === 'privacy') return <LegalPage type={page} onBack={closeLegal} />;
 
   if (page === 'landing') {
-    return <Landing onGetStarted={(mode) => { setAuthMode(mode); setPage('auth'); }} />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-brand-paper p-6 text-sm text-neutral-500">Loading Recess…</div>}>
+        <LandingPrototype />
+      </Suspense>
+    );
   }
 
   if (page === 'auth') {
-    return <Auth mode={authMode} onBack={() => setPage('landing')} onSuccess={() => setPage('feed')} onOpenLegal={openLegal} />;
+    return <Auth mode={authMode} onBack={() => navigate('landing', '/')} onSuccess={() => navigate('feed', '/')} onOpenLegal={openLegal} />;
   }
 
   return (
-    <div className="min-h-screen bg-orange-50 p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-brand-paper p-4 md:p-8 font-sans">
       <div className="mx-auto max-w-7xl">
         <Header
           page={page}
@@ -261,24 +342,30 @@ export default function App() {
           showEventForm={showEventForm}
           onToggle={() => { setEventError(null); setShowEventForm((visible) => !visible); }}
           onNavigate={(nextPage) => setPage(nextPage)}
+          onSignOut={handleSignOut}
         />
+        {signOutError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{signOutError}</p>}
 
-        {page === 'calendar' ? (
-          <CalendarView />
-        ) : page === 'event' ? (
-          <>
-            {eventError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
-            <EventDetails event={currentEvent} joined={joined} onJoin={handleJoinEvent} />
-          </>
-        ) : page === 'profile' ? (
-          <Profile />
-        ) : (
+        <Suspense fallback={<p className="rounded-xl bg-white p-6 text-sm text-neutral-500">Loading Recess…</p>}>
+          {page === 'calendar' ? (
+            <CalendarView />
+          ) : ['matching', 'connections', 'requests', 'chat', 'preferences', 'admin'].includes(page) ? (
+            <CommunityHub initialTab={page} />
+          ) : page === 'event' ? (
+            <>
+              {eventError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
+              <EventDetails event={currentEvent} joined={joined} onJoin={handleJoinEvent} />
+            </>
+          ) : page === 'profile' ? (
+            <Profile />
+          ) : (
           <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
             <div className="space-y-3">
               <PresenceStrip
                 activeAreas={mapPoints.filter((point) => point.type === 'presence').length}
               />
               {eventError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
+              {statusError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{statusError}</p>}
               {showEventForm && (
                 <EventForm
                   initialData={editingEvent}
@@ -346,7 +433,8 @@ export default function App() {
               <CampusMap events={mapPoints} />
             </div>
           </div>
-        )}
+          )}
+        </Suspense>
 
         <footer className="text-center text-[11px] text-neutral-400 mt-12 pt-6 border-t border-neutral-100">Recess v1.3 · Campus coordination for UTS</footer>
       </div>

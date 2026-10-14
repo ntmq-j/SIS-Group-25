@@ -67,6 +67,39 @@ For local development, run `supabase functions serve` alongside the Vite
 server. The frontend falls back to the same RLS-protected PostgREST operation
 when the local Edge Function runtime is not running.
 
+## CORS, Auth redirects, and function logs
+
+Local Supabase automatically permits `http://localhost:5173` and
+`http://127.0.0.1:5173`. Hosted Edge Functions require an explicit
+comma-separated `ALLOWED_ORIGINS` secret. Set it only after choosing the
+frontend host; use origins (scheme + hostname + optional port), without a
+path or trailing slash:
+
+```powershell
+npx supabase secrets set ALLOWED_ORIGINS="https://your-real-frontend-host" --project-ref <project-ref>
+```
+
+Multiple origins can be comma-separated, for example production and staging.
+Do not use `*`. Because Recess has not chosen a production host yet, no
+production URL is included in this repository. Once the host is selected:
+
+1. Set the production origin as **Site URL** and add
+   `https://<your-production-host>/auth/callback` under **Supabase Dashboard →
+   Authentication → URL Configuration → Redirect URLs**. Add the actual
+   hostname, not the placeholder.
+2. Set the same origin in the Edge Function `ALLOWED_ORIGINS` secret above.
+3. Deploy the frontend and Edge Functions, then test email confirmation and
+   sign-in redirects from the deployed domain.
+
+The committed `supabase/config.toml` contains local-only redirect URLs; it does
+not configure a hosted project's Dashboard settings. Edge Functions emit
+structured request-completion/error logs with duration, status and a request
+ID. Inspect them in **Supabase Dashboard → Edge Functions → Logs** and match a
+log entry to a client response via its `X-Request-Id` header. Logs omit request
+bodies, tokens and personal data. For the MVP this uses Supabase's built-in
+function logs; external alerting and dashboards are not configured yet and
+should be added once the hosting/monitoring provider is selected.
+
 ## Using the client in code
 
 ```js

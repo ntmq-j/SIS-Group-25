@@ -63,16 +63,19 @@ are exercised for real in Phase 1.)
 ## CI
 
 `.github/workflows/ci.yml` runs the frontend lint/build and the complete
-local Supabase pgTAP suite (currently 387 checks) on pushes and pull requests. The workflow starts
+local Supabase pgTAP suite (currently 404 checks) on pushes and pull requests. The workflow starts
 an isolated Supabase stack on the GitHub runner; it does not connect to or
 modify `recess-dev`.
 
 ## Remaining test coverage
 
-- No automated browser/E2E suite yet; sign-up confirmation and the
-  multi-session realtime map still need the release smoke test.
-- No load/performance test framework yet. Matching query performance should
-  be measured against representative data before a wider rollout.
+- Browser smoke coverage is available with `npm run test:e2e`. Set real
+  Supabase credentials and add authenticated fixtures before testing signup,
+  email confirmation, privacy, and multi-session realtime behaviour.
+- A lightweight HTTP smoke load check is available with `npm run test:load`.
+  Use `LOAD_URL`, `LOAD_CONCURRENCY`, and `LOAD_ROUNDS`; this is a baseline
+  check, not a production capacity benchmark. Matching query performance
+  should still be measured with representative authenticated data.
 
 ## Local testing requires Docker
 
