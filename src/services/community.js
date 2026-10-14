@@ -229,6 +229,16 @@ export async function sendMessage(conversationId, body) {
   if (error) throw error;
 }
 
+export async function deleteMessage(messageId) {
+  const { data, error } = await supabase.from('messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', messageId)
+    .select('id, conversation_id, sender_id, body, created_at, deleted_at')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export function subscribeToMessages(conversationId, onChange) {
   const channel = supabase.channel(`recess-messages-${conversationId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, onChange)

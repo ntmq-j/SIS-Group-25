@@ -62,6 +62,7 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [statusError, setStatusError] = useState(null);
   const [signOutError, setSignOutError] = useState(null);
+  const [chatActivityId, setChatActivityId] = useState(null);
 
   const refreshRemoteFeed = useCallback(async () => {
     if (!session) return;
@@ -295,6 +296,11 @@ export default function App() {
     setShowEventForm(true); 
   };
 
+  const handleOpenActivityChat = (activityId) => {
+    setChatActivityId(activityId);
+    setPage('chat');
+  };
+
   const currentEvent = selectedEvent ?? SAMPLE_EVENT;
 
   const navigate = (nextPage, path) => {
@@ -338,10 +344,10 @@ export default function App() {
       <div className="mx-auto max-w-7xl">
         <Header
           page={page}
-          onBack={() => setPage('feed')}
+          onBack={() => { setChatActivityId(null); setPage('feed'); }}
           showEventForm={showEventForm}
           onToggle={() => { setEventError(null); setShowEventForm((visible) => !visible); }}
-          onNavigate={(nextPage) => setPage(nextPage)}
+          onNavigate={(nextPage) => { if (nextPage !== 'chat') setChatActivityId(null); setPage(nextPage); }}
           onSignOut={handleSignOut}
         />
         {signOutError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{signOutError}</p>}
@@ -350,11 +356,11 @@ export default function App() {
           {page === 'calendar' ? (
             <CalendarView />
           ) : ['matching', 'connections', 'requests', 'chat', 'preferences', 'admin'].includes(page) ? (
-            <CommunityHub initialTab={page} />
+            <CommunityHub initialTab={page} currentUserId={session?.user?.id} initialActivityId={chatActivityId} />
           ) : page === 'event' ? (
             <>
               {eventError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
-              <EventDetails event={currentEvent} joined={joined} onJoin={handleJoinEvent} />
+              <EventDetails event={currentEvent} joined={joined} onJoin={handleJoinEvent} onOpenChat={handleOpenActivityChat} />
             </>
           ) : page === 'profile' ? (
             <Profile />

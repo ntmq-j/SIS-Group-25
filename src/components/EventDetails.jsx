@@ -1,7 +1,7 @@
 import { Clock, MapPin } from 'lucide-react';
 import { getCategory, toTagList } from '../lib/eventCategories';
 
-export default function EventDetails({ event, joined, onJoin }) {
+export default function EventDetails({ event, joined, onJoin, onOpenChat }) {
   const { title, location, time, description, host, isCreator } = event;
 
   const c = getCategory(event.category);
@@ -124,6 +124,16 @@ export default function EventDetails({ event, joined, onJoin }) {
                       ? 'You left this activity'
                       : 'Join event'}
       </button>
+
+      {event.source === 'activity' && (isCreator || joined === 'going') && event.remoteId && onOpenChat && (
+        <button
+          type="button"
+          onClick={() => onOpenChat(event.remoteId)}
+          className="mt-3 w-full rounded-xl border border-orange-200 bg-white py-3.5 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-50"
+        >
+          Open group chat
+        </button>
+      )}
     </>
   );
 }
