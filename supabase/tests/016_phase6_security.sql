@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 
 begin;
-select plan(26);
+select plan(27);
 
 -- Every application table is protected by RLS, including the server-only
 -- message body table. Reference tables intentionally keep public read
@@ -146,6 +146,11 @@ select ok(
   exists (select 1 from pg_trigger where tgrelid = 'public.messages'::regclass and tgname = 'on_message_write_guard')
   and exists (select 1 from pg_trigger where tgrelid = 'public.reports'::regclass and tgname = 'on_report_write_guard'),
   'chat and moderation guard triggers are installed'
+);
+select ok(
+  exists (select 1 from pg_trigger where tgrelid = 'public.activity_participants'::regclass and tgname = 'on_activity_participant_protected_fields')
+  and not has_function_privilege('authenticated', 'public.prevent_activity_participant_protected_changes()', 'execute'),
+  'activity participant identity and response metadata are protected'
 );
 select ok(
   not has_function_privilege('anon', 'public.email_domain(text)', 'execute')

@@ -88,7 +88,36 @@ export async function rsvpToEvent(eventId, status = 'going') {
   });
 }
 
+export async function loadMyEventParticipation(source, eventId) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Authentication required');
+
+  const query = source === 'official_event'
+    ? supabase
+      .from('event_rsvps')
+      .select('status')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+    : supabase
+      .from('activity_participants')
+      .select('status, is_creator')
+      .eq('activity_id', eventId)
+      .eq('user_id', user.id);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  if (source === 'official_event') return data.status;
+  if (data.is_creator) return 'hosting';
+  return data.status === 'accepted' ? 'going' : data.status;
+}
+
 export async function loadCalendarEvents() {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Authentication required');
+
   const [{ data: rsvps, error: rsvpError }, { data: memberships, error: membershipError }] = await Promise.all([
     supabase
       .from('event_rsvps')
@@ -96,7 +125,8 @@ export async function loadCalendarEvents() {
       .in('status', ['going', 'interested']),
     supabase
       .from('activity_participants')
-      .select('activity_id, status, created_at')
+      .select('activity_id, status, created_at, is_creator')
+      .eq('user_id', user.id)
       .eq('status', 'accepted'),
   ]);
 
@@ -119,6 +149,7 @@ export async function loadCalendarEvents() {
         .from('activities')
         .select('id, title, description, category, location_label, latitude, longitude, start_time, end_time, status, areas(name, locations(name)), creator:profiles!creator_id(display_name)')
         .in('id', activityIds)
+        .eq('status', 'open')
         .gte('end_time', new Date().toISOString())
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -143,6 +174,7 @@ export async function loadCalendarEvents() {
       endTime: event.end_time,
       host: event.organisations?.name?.trim() || 'Organisation event',
       rsvpStatus: rsvp?.status ?? 'going',
+      isCreator: false,
     };
   });
 
@@ -161,6 +193,7 @@ export async function loadCalendarEvents() {
       endTime: activity.end_time,
       host: activity.creator?.display_name?.trim() || 'Recess community',
       rsvpStatus: membership?.status ?? 'pending',
+      isCreator: membership?.is_creator === true,
     };
   });
 
@@ -179,6 +212,11 @@ export async function cancelCalendarEvent(event) {
       .eq('event_id', event.remoteId)
       .eq('user_id', user.id);
     if (error) throw error;
+    return;
+  }
+
+  if (event.isCreator) {
+    await cancelActivity(event.remoteId);
     return;
   }
 

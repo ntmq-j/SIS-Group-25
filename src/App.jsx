@@ -25,6 +25,7 @@ import {
   mapPointToMapItem,
   mapPointToFeedItem,
   rsvpToEvent,
+  loadMyEventParticipation,
   subscribeToMapChanges,
   updateActivity,
 } from './services/events';
@@ -178,8 +179,13 @@ export default function App() {
         detail: item.source === 'official_event' ? 'Approved organisation event' : 'Verified Recess user',
       },
     });
-    setJoined(null);
+    setJoined(item.isCreator ? 'hosting' : 'loading');
     setPage('event');
+    if (!item.isCreator) {
+      loadMyEventParticipation(item.source, item.remoteId)
+        .then((status) => setJoined(status))
+        .catch(() => setJoined(null));
+    }
   };
 
   const handleJoinEvent = async () => {

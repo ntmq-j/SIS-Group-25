@@ -35,7 +35,7 @@ npm ci --ignore-scripts
 npx supabase test db
 ```
 
-The database suite currently contains 387 pgTAP checks across authentication, availability, activities, events/RSVPs, realtime map, matching, blocks, reports, chat and the Phase 6 security audit.
+The database suite currently contains 396 pgTAP checks across authentication, availability, activities, events/RSVPs, realtime map, matching, blocks, reports, chat and the Phase 6 security audit.
 
 ## Architecture
 

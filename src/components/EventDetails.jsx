@@ -101,13 +101,21 @@ export default function EventDetails({ event, joined, onJoin }) {
             : `${c.joinButton} text-white shadow-xs`
         }`}
       >
-        {isCreator
+        {isCreator || joined === 'hosting'
           ? 'You are hosting this event'
-          : joined === 'pending'
-            ? 'Request sent — awaiting host approval'
-            : joined === 'going'
-            ? "You're going"
-            : 'Join event'}
+          : joined === 'loading'
+            ? 'Checking your status…'
+            : joined === 'pending'
+              ? 'Request sent — awaiting host approval'
+              : joined === 'going'
+                ? "You're going"
+                : joined === 'interested'
+                  ? "You're interested"
+                  : joined === 'declined'
+                    ? 'Your request was declined'
+                    : joined === 'left'
+                      ? 'You left this activity'
+                      : 'Join event'}
       </button>
     </>
   );

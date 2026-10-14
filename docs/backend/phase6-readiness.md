@@ -16,7 +16,7 @@
   send raw SQL errors to the browser.
 - Internal trigger/Auth-hook functions are no longer callable through public
   RPC, and `email_domain` has a fixed `search_path`.
-- Local verification: `npm ci`, lint, build, `db reset`, and 387 pgTAP checks.
+- Local verification: `npm ci`, lint, build, `db reset`, and 396 pgTAP checks.
 
 ## Still outside the current frontend MVP
 

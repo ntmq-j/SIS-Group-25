@@ -9,7 +9,7 @@
 -- capacity/rate-limit logic behaves, not just that it exists.
 
 begin;
-select plan(40);
+select plan(48);
 
 create or replace function pg_temp.create_test_user(
   p_email text,
@@ -192,14 +192,68 @@ select set_config('request.jwt.claim.sub', '', true);
 set local role authenticated;
 select set_config('request.jwt.claim.sub', :'bob_id', true);
 
-insert into public.activity_participants (activity_id, user_id)
-values (:'activity_id'::uuid, :'bob_id'::uuid)
+insert into public.activity_participants (activity_id, user_id, created_at, responded_at)
+values (:'activity_id'::uuid, :'bob_id'::uuid, now() - interval '30 days', now())
 returning id as bob_participant_id \gset
 
 select is(
   (select status from public.activity_participants where id = :'bob_participant_id'::uuid),
   'pending',
   'a verified user''s join request starts as pending'
+);
+
+select ok(
+  (select created_at > now() - interval '1 minute'
+   from public.activity_participants where id = :'bob_participant_id'::uuid),
+  'participant creation time is assigned by the database'
+);
+
+select is(
+  (select responded_at from public.activity_participants where id = :'bob_participant_id'::uuid),
+  null,
+  'a new join request cannot supply response metadata'
+);
+
+select throws_ok(
+  $$ update public.activity_participants set id = gen_random_uuid()
+     where id = '$$ || :'bob_participant_id' || $$' $$,
+  'P0001', null,
+  'a participant cannot change the row id'
+);
+
+select throws_ok(
+  $$ update public.activity_participants set activity_id = gen_random_uuid()
+     where id = '$$ || :'bob_participant_id' || $$' $$,
+  'P0001', null,
+  'a participant cannot move their membership to another activity'
+);
+
+select throws_ok(
+  $$ update public.activity_participants set user_id = '$$ || :'alice_id' || $$'
+     where id = '$$ || :'bob_participant_id' || $$' $$,
+  'P0001', null,
+  'a participant cannot reassign membership to another user'
+);
+
+select throws_ok(
+  $$ update public.activity_participants set is_creator = true
+     where id = '$$ || :'bob_participant_id' || $$' $$,
+  'P0001', null,
+  'a participant cannot promote themselves to activity creator'
+);
+
+select throws_ok(
+  $$ update public.activity_participants set created_at = now() - interval '1 day'
+     where id = '$$ || :'bob_participant_id' || $$' $$,
+  'P0001', null,
+  'a participant cannot backdate a join request'
+);
+
+select throws_ok(
+  $$ update public.activity_participants set responded_at = now()
+     where id = '$$ || :'bob_participant_id' || $$' $$,
+  'P0001', null,
+  'a participant cannot forge response metadata'
 );
 
 select throws_ok(
