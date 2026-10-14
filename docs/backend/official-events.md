@@ -77,10 +77,16 @@ range-checked and must be supplied as a pair (both or neither).
 | `id` | uuid |
 | `event_id` | `official_events.id` |
 | `user_id` | must equal `auth.uid()` |
-| `status` | `going` (default) or `interested` |
+| `status` | `going` (default), `interested`, or `waitlisted` |
 | `created_at`, `updated_at` | |
 
 Unique on `(event_id, user_id)` -- one RSVP per user per event.
+
+`official_events.participant_limit` is optional (`NULL` means unlimited).
+The database serializes RSVP writes per event, sends overflow RSVPs to a FIFO
+waitlist, and promotes the oldest waitlisted attendee when a confirmed RSVP is
+withdrawn or capacity becomes available. Capacity cannot be reduced below the
+current number of confirmed attendees.
 
 ## Event lifecycle
 

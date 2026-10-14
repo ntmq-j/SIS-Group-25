@@ -4,12 +4,18 @@ const MAX = 200;
 
 export default function StatusInput({ onPost }) {
   const [text, setText] = useState('');
+  const [posting, setPosting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    onPost(text.trim());
-    setText('');
+    if (!text.trim() || posting) return;
+    setPosting(true);
+    try {
+      const saved = await onPost(text.trim());
+      if (saved !== false) setText('');
+    } finally {
+      setPosting(false);
+    }
   };
 
   return (
@@ -26,10 +32,10 @@ export default function StatusInput({ onPost }) {
         <span className="text-[11px] text-neutral-400">{MAX - text.length}</span>
         <button
           type="submit"
-          disabled={!text.trim()}
+          disabled={!text.trim() || posting}
           className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-200 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
         >
-          Post status
+          {posting ? 'Posting…' : 'Post status'}
         </button>
       </div>
     </form>

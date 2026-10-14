@@ -7,4 +7,12 @@ export default defineConfig({
     react(),
     tailwindcss(), 
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        prototype: 'prototype.html',
+      },
+    },
+  },
 })

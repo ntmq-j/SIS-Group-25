@@ -1,20 +1,13 @@
-import { Clock } from 'lucide-react';
+import { Clock, Pencil, Trash2 } from 'lucide-react';
 import Avatar from './Avatar';
 import { getCategory, toTagList } from '../lib/eventCategories';
 
-export default function EventCard({ item, onOpen, onOpenProfile, onEdit, onDelete }) {
+export default function EventCard({ item, onOpen, onEdit, onDelete }) {
   const c = getCategory(item.category);
   const tags = toTagList(item.tags);
 
   const visibleTags = tags.slice(0, 3);
   const extraCount = tags.length - visibleTags.length;
-
-  const handleProfileClick = (e) => {
-    e.stopPropagation();
-    if (item.userId && onOpenProfile) {
-      onOpenProfile(item.userId);
-    }
-  };
 
   return (
     <div
@@ -22,7 +15,7 @@ export default function EventCard({ item, onOpen, onOpenProfile, onEdit, onDelet
     >
       <div className="mb-2.5 flex items-start justify-between">
         <div className="flex items-start gap-2.5">
-          <div onClick={handleProfileClick} className="cursor-pointer">
+          <div>
             <Avatar name={item.author} variant="pro" />
           </div>
 
@@ -72,17 +65,37 @@ export default function EventCard({ item, onOpen, onOpenProfile, onEdit, onDelet
       )}
 
       <div className="ml-10 flex items-center justify-between border-t border-neutral-100 pt-2.5">
-        <span className="text-[11px] text-neutral-400">
-          Hosted by{' '}
-          <button
-            onClick={handleProfileClick}
-            className="font-medium text-neutral-600 hover:underline cursor-pointer"
-          >
-            {item.author}
-          </button>
+        <div className="flex items-center gap-2 text-[11px] text-neutral-400">
+          <span>
+            Hosted by <span className="font-medium text-neutral-600">{item.author}</span>
           </span>
 
+          {item.isCreator && item.source === 'activity' && (
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onEdit?.(item)}
+                className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-semibold text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                aria-label={`Edit ${item.title}`}
+              >
+                <Pencil size={12} aria-hidden="true" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete?.(item.remoteId)}
+                className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-semibold text-rose-500 hover:bg-rose-50 hover:text-rose-700"
+                aria-label={`Cancel ${item.title}`}
+              >
+                <Trash2 size={12} aria-hidden="true" />
+                Cancel
+              </button>
+            </span>
+          )}
+        </div>
+
         <button
+          type="button"
           onClick={onOpen}
           className={`text-[11px] font-semibold transition-colors hover:underline ${c.textDeep}`}
         >

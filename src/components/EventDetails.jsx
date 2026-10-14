@@ -24,6 +24,11 @@ export default function EventDetails({ event, joined, onJoin, onOpenChat }) {
               {description}
             </p>
           )}
+          {Number.isFinite(event.participantLimit) && event.participantLimit > 0 && (
+            <p className="mt-3 text-xs font-medium text-neutral-500">
+              {event.participantCount ?? 0} / {event.participantLimit} going
+            </p>
+          )}
         </div>
 
         <div className="space-y-4 border-b border-neutral-100 p-5">
@@ -101,14 +106,26 @@ export default function EventDetails({ event, joined, onJoin, onOpenChat }) {
             : `${c.joinButton} text-white shadow-xs`
         }`}
       >
-        {isCreator
+        {isCreator || joined === 'hosting'
           ? 'You are hosting this event'
-          : joined
-            ? "You're going"
-            : 'Join event'}
+          : joined === 'loading'
+            ? 'Checking your status…'
+            : joined === 'pending'
+              ? 'Request sent — awaiting host approval'
+              : joined === 'going'
+                ? "You're going"
+                : joined === 'waitlisted'
+                  ? "You're on the waitlist"
+                : joined === 'interested'
+                  ? "You're interested"
+                  : joined === 'declined'
+                    ? 'Your request was declined'
+                    : joined === 'left'
+                      ? 'You left this activity'
+                      : 'Join event'}
       </button>
 
-      {(joined || isCreator) && event.remoteId && onOpenChat && (
+      {event.source === 'activity' && (isCreator || joined === 'going') && event.remoteId && onOpenChat && (
         <button
           type="button"
           onClick={() => onOpenChat(event.remoteId)}

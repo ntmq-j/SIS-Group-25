@@ -70,8 +70,8 @@ export default function EventForm({
   const [category, setCategory] = useState(initialData?.category || CATEGORY_OPTIONS[0].id);
   const [tags, setTags] = useState(initialData?.tags || []);
   const [tagDraft, setTagDraft] = useState('');
-  const participantLimit = String(initialData?.participantLimit || '3');
-  const areaId = initialData?.areaId || '';
+  const [participantLimit, setParticipantLimit] = useState(String(initialData?.participantLimit || '3'));
+  const [areaId, setAreaId] = useState(initialData?.areaId || '');
   const [startTime, setStartTime] = useState(() =>
     initialData?.startTime ? toLocalDateTime(new Date(initialData.startTime)) : toLocalDateTime(new Date(Date.now() + 30 * 60 * 1000))
   );
@@ -111,6 +111,15 @@ export default function EventForm({
   const commitTag = () => {
     setTags(previous => addTag(previous, tagDraft));
     setTagDraft('');
+  };
+
+  const handleAreaChange = nextAreaId => {
+    setAreaId(nextAreaId);
+    const area = areas.find(item => item.id === nextAreaId);
+    const location = area?.locations;
+    if (isValidCoordinates(location?.latitude, location?.longitude)) {
+      setPosition([location.latitude, location.longitude]);
+    }
   };
 
   const handleTagChange = value => {
@@ -220,6 +229,23 @@ export default function EventForm({
       </label>
 
       <label className={labelClass}>
+        <span className={labelTextClass}>Campus / venue area</span>
+
+        <select
+          value={effectiveAreaId}
+          onChange={event => handleAreaChange(event.target.value)}
+          required
+          className={field}
+        >
+          {areas.map(area => (
+            <option key={area.id} value={area.id}>
+              {area.name}{area.locations?.name ? ` — ${area.locations.name}` : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className={labelClass}>
         <span className={labelTextClass}>Category</span>
 
         <select
@@ -233,6 +259,21 @@ export default function EventForm({
             </option>
           ))}
         </select>
+      </label>
+
+      <label className={labelClass}>
+        <span className={labelTextClass}>Additional participant limit</span>
+        <input
+          type="number"
+          min={1}
+          max={5}
+          step={1}
+          value={participantLimit}
+          onChange={event => setParticipantLimit(event.target.value)}
+          required
+          className={field}
+        />
+        <span className="mt-1 block text-[11px] font-normal text-neutral-400">Does not include you as the host; choose 1–5 people.</span>
       </label>
 
       <p className={`text-[11px] ${c.text}`}>
@@ -371,6 +412,7 @@ export default function EventForm({
         </p>
 
         <MapContainer
+          key={effectiveAreaId}
           center={position}
           zoom={16}
           minZoom={2}

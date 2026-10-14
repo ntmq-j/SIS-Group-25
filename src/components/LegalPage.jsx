@@ -1,3 +1,5 @@
+import BrandMark from './BrandMark';
+
 const LEGAL_CONTENT = {
   terms: {
     title: 'Terms of Service',
@@ -59,7 +61,7 @@ export default function LegalPage({ type, onBack }) {
   const content = LEGAL_CONTENT[type] ?? LEGAL_CONTENT.terms;
 
   return (
-    <main className="min-h-screen bg-orange-50 px-4 py-8 font-sans">
+    <main className="min-h-screen bg-brand-paper px-4 py-8 font-sans">
       <article className="mx-auto max-w-3xl rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm md:p-10">
         <div className="mb-8 flex items-center justify-between gap-4">
           <button
@@ -69,9 +71,7 @@ export default function LegalPage({ type, onBack }) {
           >
             ← Back
           </button>
-          <span className="text-xs font-semibold uppercase tracking-wider text-orange-600">
-            Recess
-          </span>
+          <BrandMark />
         </div>
 
         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-neutral-400">

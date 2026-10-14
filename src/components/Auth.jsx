@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import BrandMark from './BrandMark';
 
 export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
   const [isSignUp, setIsSignUp] = useState(mode === 'signup');
@@ -67,7 +68,7 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
   };
 
   return (
-    <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-brand-paper flex flex-col items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-neutral-100 space-y-6">
         <div className="flex justify-between items-center">
           <button 
@@ -76,7 +77,7 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
           >
             ← Back
           </button>
-          <span className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Recess</span>
+          <BrandMark />
         </div>
 
         <div>

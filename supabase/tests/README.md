@@ -60,17 +60,28 @@ rollback;
 first migration that needs one, e.g. when `base_rls_policies` policies
 are exercised for real in Phase 1.)
 
-## What we are NOT doing in the MVP
+## CI
 
-- No load/performance testing framework yet (Phase 6 "test matching
-  performance" is the first place this becomes relevant).
-- No CI pipeline wired up yet -- out of scope for Phase 0, revisit in
-  Phase 6 "Configure staging environment".
+`.github/workflows/ci.yml` runs the frontend lint/build and the complete
+local Supabase pgTAP suite (currently 404 checks) on pushes and pull requests. The workflow starts
+an isolated Supabase stack on the GitHub runner; it does not connect to or
+modify `recess-dev`.
+
+## Remaining test coverage
+
+- Browser smoke coverage is available with `npm run test:e2e`. Set real
+  Supabase credentials and add authenticated fixtures before testing signup,
+  email confirmation, privacy, and multi-session realtime behaviour.
+- A lightweight HTTP smoke load check is available with `npm run test:load`.
+  Use `LOAD_URL`, `LOAD_CONCURRENCY`, and `LOAD_ROUNDS`; this is a baseline
+  check, not a production capacity benchmark. Matching query performance
+  should still be measured with representative authenticated data.
 
 ## Local testing requires Docker
 
 `supabase start` / `npx supabase test db` need Docker Desktop running
-locally. If a teammate doesn't have Docker, they can still write
-migrations and get them reviewed, but can't run `db reset` / pgTAP tests
-locally until Docker is installed, or until the shared dev project (once
-linked) is used for manual verification instead.
+locally. `npx supabase db reset` recreates the local database from migrations
+and seed data, so it removes local test accounts and other local-only data.
+Use it only when you intend to reset the local stack; it does not reset the
+remote project. Teammates without Docker can still write and review
+migrations, while CI runs the local database test suite.

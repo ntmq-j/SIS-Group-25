@@ -19,8 +19,15 @@ async function invokeWithLocalFallback(functionName, body, fallback) {
   if (error.context && typeof error.context.json === 'function') {
     try {
       const responseBody = await error.context.json();
-      const message = responseBody?.error || responseBody?.message;
-      if (message) throw new Error(message);
+      const apiError = responseBody?.error;
+      const message = typeof apiError === 'string'
+        ? apiError
+        : apiError?.message || responseBody?.message;
+      if (message) {
+        const clientError = new Error(message);
+        if (typeof apiError === 'object' && apiError?.code) clientError.code = apiError.code;
+        throw clientError;
+      }
     } catch (responseError) {
       if (responseError instanceof Error && responseError.message) throw responseError;
     }
@@ -43,18 +50,6 @@ export async function loadAreas() {
     .from('areas')
     .select('id, name, type, location_id, locations(id, name, type, latitude, longitude)')
     .order('name');
-  if (error) throw error;
-  return data ?? [];
-}
-
-export async function loadExampleHosts() {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, display_name')
-    .eq('account_status', 'verified')
-    .not('display_name', 'is', null)
-    .order('created_at')
-    .limit(4);
   if (error) throw error;
   return data ?? [];
 }
@@ -93,15 +88,59 @@ export async function rsvpToEvent(eventId, status = 'going') {
   });
 }
 
+export async function loadOfficialEventRsvpInfo(eventId) {
+  const [{ data: event, error: eventError }, { data: counts, error: countsError }] = await Promise.all([
+    supabase.from('official_events').select('participant_limit').eq('id', eventId).single(),
+    supabase.rpc('event_rsvp_counts', { p_event_id: eventId }),
+  ]);
+  if (eventError) throw eventError;
+  if (countsError) throw countsError;
+  return {
+    participantLimit: event.participant_limit,
+    participantCount: counts?.[0]?.going_count ?? 0,
+  };
+}
+
+export async function loadMyEventParticipation(source, eventId) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Authentication required');
+
+  const query = source === 'official_event'
+    ? supabase
+      .from('event_rsvps')
+      .select('status')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+    : supabase
+      .from('activity_participants')
+      .select('status, is_creator')
+      .eq('activity_id', eventId)
+      .eq('user_id', user.id);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  if (source === 'official_event') return data.status;
+  if (data.is_creator) return 'hosting';
+  return data.status === 'accepted' ? 'going' : data.status;
+}
+
 export async function loadCalendarEvents() {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Authentication required');
+
   const [{ data: rsvps, error: rsvpError }, { data: memberships, error: membershipError }] = await Promise.all([
     supabase
       .from('event_rsvps')
       .select('event_id, status, created_at')
-      .in('status', ['going', 'interested']),
+      .eq('user_id', user.id)
+      .in('status', ['going', 'interested', 'waitlisted']),
     supabase
       .from('activity_participants')
-      .select('activity_id, status, created_at')
+      .select('activity_id, status, created_at, is_creator')
+      .eq('user_id', user.id)
       .eq('status', 'accepted'),
   ]);
 
@@ -124,6 +163,7 @@ export async function loadCalendarEvents() {
         .from('activities')
         .select('id, title, description, category, location_label, latitude, longitude, start_time, end_time, status, areas(name, locations(name)), creator:profiles!creator_id(display_name)')
         .in('id', activityIds)
+        .eq('status', 'open')
         .gte('end_time', new Date().toISOString())
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -148,6 +188,8 @@ export async function loadCalendarEvents() {
       endTime: event.end_time,
       host: event.organisations?.name?.trim() || 'Organisation event',
       rsvpStatus: rsvp?.status ?? 'going',
+      participantLimit: event.participant_limit,
+      isCreator: false,
     };
   });
 
@@ -166,6 +208,7 @@ export async function loadCalendarEvents() {
       endTime: activity.end_time,
       host: activity.creator?.display_name?.trim() || 'Recess community',
       rsvpStatus: membership?.status ?? 'pending',
+      isCreator: membership?.is_creator === true,
     };
   });
 
@@ -184,6 +227,11 @@ export async function cancelCalendarEvent(event) {
       .eq('event_id', event.remoteId)
       .eq('user_id', user.id);
     if (error) throw error;
+    return;
+  }
+
+  if (event.isCreator) {
+    await cancelActivity(event.remoteId);
     return;
   }
 
@@ -249,15 +297,38 @@ export function mapPointToFeedItem(point, currentUserName) {
     areaId: point.area_id,
     location: point.location_name ?? point.area_name ?? 'Campus meeting point',
     time: formatTimeWindow(point.starts_at, point.ends_at),
+    startTime: point.starts_at,
+    endTime: point.ends_at,
     author,
     category: point.category,
-    description: point.category ? formatCategory(point.category) : null,
+    description: point.description ?? null,
+    tags: point.tags ?? [],
     latitude: point.latitude,
     longitude: point.longitude,
     participantCount: point.participant_count,
     participantLimit: point.participant_limit,
     isCreator: point.is_creator === true,
   };
+}
+
+export function mapPointToMapItem(point, currentUserName) {
+  if (point.point_type === 'presence') {
+    return {
+      id: `presence:${point.point_id}`,
+      remoteId: point.point_id,
+      type: 'presence',
+      source: 'presence',
+      title: 'People available nearby',
+      location: point.location_name ?? point.area_name ?? 'Nearby area',
+      time: 'Available now',
+      author: 'Nearby Recess members',
+      availablePeople: point.available_people ?? 0,
+      latitude: point.latitude,
+      longitude: point.longitude,
+    };
+  }
+
+  return mapPointToFeedItem(point, currentUserName);
 }
 
 function formatTimeWindow(start, end) {
