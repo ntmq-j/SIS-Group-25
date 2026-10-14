@@ -1,217 +1,148 @@
- import React, { useState } from 'react';
-import { User, BookOpen, Briefcase, Mail, MapPin, Edit3, Save, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BookOpen, Briefcase, Edit3, Mail, Save, X } from 'lucide-react';
+import { loadOwnProfile, updateOwnProfile } from '../services/profiles';
+
+const emptyProfile = {
+  display_name: '',
+  bio: '',
+  course_or_role: '',
+  account_type: '',
+  organisations: null,
+};
 
 export default function Profile() {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(emptyProfile);
+  const [formData, setFormData] = useState(emptyProfile);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [saved, setSaved] = useState(false);
 
-  // Mock initial state - you can replace this with fetched user data later
-  const [profile, setProfile] = useState({
-    fullName: 'Salha Alghoraibi',
-    email: 'name@student.uts.edu.au',
-    occupation: 'Software Engineering Student',
-    degree: 'Bachelor of Engineering (Honours)',
-    campusLocation: 'Sydney, Australia',
-    bio: 'description of yourself',
-  });
+  useEffect(() => {
+    let active = true;
+    loadOwnProfile()
+      .then(({ user: currentUser, profile: currentProfile }) => {
+        if (!active) return;
+        setUser(currentUser);
+        setProfile(currentProfile);
+        setFormData(currentProfile);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError?.message ?? 'Unable to load your profile.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
-  const [formData, setFormData] = useState(profile);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    setProfile(formData);
-    setIsEditing(false);
-    // TODO: Add Supabase update call here later
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const updated = await updateOwnProfile(formData);
+      setProfile(updated);
+      setFormData(updated);
+      setIsEditing(false);
+      setSaved(true);
+    } catch (saveError) {
+      setError(saveError?.message ?? 'Unable to save your profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleCancel = () => {
-    setFormData(profile);
-    setIsEditing(false);
-  };
+  if (loading) {
+    return <div className="mx-auto max-w-4xl p-6 text-center text-sm text-slate-400">Loading your profile…</div>;
+  }
+
+  if (error && !user) {
+    return <p role="alert" className="mx-auto max-w-4xl rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</p>;
+  }
+
+  const organisationName = profile.organisations?.name || 'Organisation pending';
+  const accountType = profile.account_type === 'student' ? 'Student' : 'Professional';
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header Banner & Profile Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="px-8 pb-8 relative">
-          {/* Avatar & Action Buttons */}
-          <div className="flex justify-between items-end pt-6 mb-6">            <div className="w-32 h-32 rounded-2xl bg-white p-2 shadow-md border border-slate-100 flex items-center justify-center">
-              <div className="w-full h-full bg-orange-600 text-white rounded-xl flex items-center justify-center text-3xl font-bold">
-                {profile.fullName.charAt(0)}
+    <div className="mx-auto max-w-4xl space-y-6 p-6">
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="px-8 pb-8">
+          <div className="mb-6 flex items-end justify-between pt-6">
+            <div className="flex h-32 w-32 items-center justify-center rounded-2xl border border-slate-100 bg-white p-2 shadow-md">
+              <div className="flex h-full w-full items-center justify-center rounded-xl bg-orange-600 text-3xl font-bold text-white">
+                {(profile.display_name || user?.email || '?').charAt(0).toUpperCase()}
               </div>
             </div>
 
             {!isEditing ? (
-              <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
-            >
+              <button type="button" onClick={() => { setSaved(false); setIsEditing(true); }} className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-700">
                 <Edit3 size={16} />
                 Edit Profile
               </button>
             ) : (
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="flex items-center gap-1 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-xl transition-colors"
-                >
-                  <X size={16} />
-                  Cancel
+                <button type="button" onClick={() => { setFormData(profile); setIsEditing(false); }} className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  <X size={16} /> Cancel
                 </button>
-                <button
-                  type="submit"
-                  form="profile-form"
-                  className="flex items-center gap-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
-                >
-                  <Save size={16} />
-                  Save Changes
+                <button type="submit" form="profile-form" disabled={saving} className="flex items-center gap-1 rounded-xl bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 disabled:opacity-60">
+                  <Save size={16} /> {saving ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             )}
           </div>
 
-          {/* View vs Edit Form */}
+          {error && <p role="alert" className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          {saved && <p role="status" className="mb-4 rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-700">Profile updated.</p>}
+
           {!isEditing ? (
             <div className="space-y-6">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">{profile.fullName}</h1>
-                <p className="text-slate-500 text-sm flex items-center gap-1.5 mt-1">
-                  <Mail size={14} className="text-slate-400" />
-                  {profile.email}
-                </p>
+                <h1 className="text-2xl font-bold text-slate-900">{profile.display_name || 'Recess member'}</h1>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500"><Mail size={14} className="text-slate-400" />{user?.email}</p>
               </div>
-
-              {/* Bio Section */}
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Bio</h3>
-                <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  {profile.bio || 'No bio provided yet.'}
-                </p>
+                <p className="rounded-xl border border-slate-100 bg-slate-50 p-4 leading-relaxed text-slate-700">{profile.bio || 'No bio provided yet.'}</p>
               </div>
-
-              {/* Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="p-2.5 rounded-lg bg-orange-50 text-orange-600">
-                    <Briefcase size={20} />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-medium text-slate-400">Occupation</span>
-                    <span className="text-sm font-semibold text-slate-800">{profile.occupation || 'Not specified'}</span>
-                  </div>
+              <div className="grid grid-cols-1 gap-4 pt-2 md:grid-cols-3">
+                <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="rounded-lg bg-orange-50 p-2.5 text-orange-600"><Briefcase size={20} /></div>
+                  <div><span className="block text-xs font-medium text-slate-400">Account</span><span className="text-sm font-semibold text-slate-800">{accountType}</span></div>
                 </div>
-
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600">
-                    <BookOpen size={20} />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-medium text-slate-400">Degree / Program</span>
-                    <span className="text-sm font-semibold text-slate-800">{profile.degree || 'Not specified'}</span>
-                  </div>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="rounded-lg bg-amber-50 p-2.5 text-amber-600"><BookOpen size={20} /></div>
+                  <div><span className="block text-xs font-medium text-slate-400">Course / role</span><span className="text-sm font-semibold text-slate-800">{profile.course_or_role || 'Not specified'}</span></div>
                 </div>
-
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="p-2.5 rounded-lg bg-orange-50 text-orange-600">
-                    <MapPin size={20} />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-medium text-slate-400">Campus Location</span>
-                    <span className="text-sm font-semibold text-slate-800">{profile.campusLocation || 'Not specified'}</span>
-                  </div>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="rounded-lg bg-orange-50 p-2.5 text-orange-600"><span className="text-lg">✓</span></div>
+                  <div><span className="block text-xs font-medium text-slate-400">Organisation</span><span className="text-sm font-semibold text-slate-800">{organisationName}</span></div>
                 </div>
               </div>
             </div>
           ) : (
             <form id="profile-form" onSubmit={handleSave} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                    Occupation
-                  </label>
-                  <input
-                    type="text"
-                    name="occupation"
-                    value={formData.occupation}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                    Degree / Program
-                  </label>
-                  <input
-                    type="text"
-                    name="degree"
-                    value={formData.degree}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                    Campus Location
-                  </label>
-                  <input
-                    type="text"
-                    name="campusLocation"
-                    value={formData.campusLocation}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Bio
-                </label>
-                <textarea
-                  name="bio"
-                  rows={4}
-                  value={formData.bio}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all resize-none"
-                />
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Display name</label>
+                <input type="text" name="display_name" value={formData.display_name || ''} onChange={handleChange} maxLength={80} required className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500/20" />
               </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Course / role</label>
+                <input type="text" name="course_or_role" value={formData.course_or_role || ''} onChange={handleChange} maxLength={120} className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500/20" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Bio</label>
+                <textarea name="bio" rows={4} value={formData.bio || ''} onChange={handleChange} maxLength={500} className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500/20" />
+              </div>
+              <p className="text-xs text-slate-400">Your organisation, account type and email are verified fields and cannot be edited here.</p>
             </form>
           )}
         </div>

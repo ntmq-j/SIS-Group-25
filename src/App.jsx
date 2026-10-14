@@ -15,7 +15,7 @@ import CalendarView from './components/CalendarView';
 import UserProfileModal from './components/UserProfileModal';
 
 import { supabase } from './lib/supabaseClient';
-import { createExampleEvents, CURRENT_USER, SAMPLE_EVENT, SEED_FEED } from './constants/seed';
+import { CURRENT_USER, SAMPLE_EVENT } from './constants/seed';
 import { makeId, initials } from './utils/helpers';
 import {
   createActivity,
@@ -23,7 +23,7 @@ import {
   joinActivity,
   loadActiveMapPoints,
   loadAreas,
-  loadExampleHosts,
+  mapPointToMapItem,
   mapPointToFeedItem,
   rsvpToEvent,
   subscribeToMapChanges,
@@ -39,7 +39,10 @@ export default function App() {
   const [authMode, setAuthMode] = useState('signin');
   const [legalReturnPage, setLegalReturnPage] = useState('landing');
   const [session, setSession] = useState(null);
-  const [feed, setFeed] = useState(SEED_FEED);
+  // Feed events come from the privacy-preserving active_map_points RPC. Do
+  // not seed fake events into a signed-in user's production feed.
+  const [feed, setFeed] = useState([]);
+  const [mapPoints, setMapPoints] = useState([]);
   const [areas, setAreas] = useState([]);
   const [showEventForm, setShowEventForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -55,17 +58,14 @@ export default function App() {
     if (!session) return;
     setLoadingFeed(true);
     try {
-      const [points, exampleHosts] = await Promise.all([
-        loadActiveMapPoints(),
-        loadExampleHosts(),
-      ]);
+      const points = await loadActiveMapPoints();
       const hostFallback = session?.user?.user_metadata?.display_name || CURRENT_USER;
       const remoteEvents = points
         .filter((point) => point.point_type === 'activity' || point.point_type === 'official_event')
         .map((point) => mapPointToFeedItem(point, hostFallback));
+      setMapPoints(points.map((point) => mapPointToMapItem(point, hostFallback)));
       setFeed((previous) => [
         ...previous.filter((item) => item.type === 'status'),
-        ...createExampleEvents(exampleHosts),
         ...remoteEvents,
       ]);
       setEventError(null);
@@ -267,7 +267,9 @@ export default function App() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
             <div className="space-y-3">
-              <PresenceStrip />
+              <PresenceStrip
+                activeAreas={mapPoints.filter((point) => point.type === 'presence').length}
+              />
               {eventError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
               {showEventForm && (
                 <EventForm
@@ -334,7 +336,7 @@ export default function App() {
             </div>
 
             <div className="lg:sticky lg:top-6">
-              <CampusMap events={feed.filter((item) => item.type === 'event')} />
+              <CampusMap events={mapPoints} />
             </div>
           </div>
         )}

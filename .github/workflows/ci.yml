@@ -1,0 +1,58 @@
+name: Recess CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://build-only.invalid
+      VITE_SUPABASE_ANON_KEY: build-only-placeholder
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check Edge Functions
+        run: >-
+          deno check
+          supabase/functions/create-activity/index.ts
+          supabase/functions/create-official-event/index.ts
+          supabase/functions/rsvp-to-event/index.ts
+          supabase/functions/refresh-suggestions/index.ts
+
+      - name: Start isolated local Supabase
+        run: npx supabase start
+
+      - name: Run database and RLS tests
+        run: npx supabase test db
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop --no-backup

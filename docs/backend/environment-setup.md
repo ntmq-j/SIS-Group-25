@@ -4,17 +4,20 @@ Phase 0 deliverable: `.env.example` + this document.
 
 ## What these variables are for
 
-Recess's frontend talks to Supabase directly (Supabase Auth, Postgres via
-PostgREST, Realtime, Storage), protected by Row Level Security. Sensitive
-actions (matching, event approval, blocking, reporting) go through Supabase
-Edge Functions instead — see "Server-side / Edge Function secrets" below.
+Recess's frontend talks to Supabase Auth, PostgREST and Realtime using the
+public anon key; access is protected by Row Level Security. Activity/event
+creation, event RSVP and matching suggestions also have authenticated Edge
+Function routes. Blocks, reports, chat and connection rules currently rely
+on database RLS policies and triggers; do not assume every database feature
+already has a frontend screen or a dedicated Edge Function.
 
 ## One-time setup (each teammate does this locally)
 
-1. Copy the template:
+1. Copy the template (PowerShell):
    ```bash
-   cp .env.example .env
+   Copy-Item .env.example .env
    ```
+   On macOS/Linux, use `cp .env.example .env`.
 2. Get the project URL and anon key:
    - Ask whoever created the Supabase development project (Phase 0 —
      "Create Supabase development project") for the project, or open it
@@ -51,12 +54,13 @@ Supabase's function secrets:
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... 
 ```
 
-Deploy the current event functions with:
+Deploy the current Edge Functions with:
 
 ```bash
 supabase functions deploy create-activity
 supabase functions deploy create-official-event
 supabase functions deploy rsvp-to-event
+supabase functions deploy refresh-suggestions
 ```
 
 For local development, run `supabase functions serve` alongside the Vite

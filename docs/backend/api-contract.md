@@ -5,15 +5,15 @@ Phase 0 deliverable: "Define API response format" -> this document.
 Recess has two ways the frontend talks to the backend (PRD section 10):
 
 1. **Direct Supabase client queries** (`supabase.from(...).select()` etc.)
-   for anything RLS can safely protect on its own -- reading organisations,
-   locations, areas, profiles, activities, events, etc.
-2. **Supabase Edge Functions** for sensitive actions that need logic beyond
-   RLS: matching, event approval, connection requests, block/report, and
-   anything listed under "Suggested API and Function Contracts" in
-   Backend Docs v0.1.
+   for operations protected by RLS, such as reading approved areas, profiles,
+   activities, event data and participants.
+2. **Supabase Edge Functions** for activity/event creation, RSVPs and matching
+   suggestions. Blocks, reports, connections and chat are currently enforced
+   by database RLS/triggers; not all of those backend features have a frontend
+   screen or Edge Function yet.
 
-This document defines the response shape for (2). Direct client queries
-(1) follow whatever shape `supabase-js` already returns
+This document defines the response shape for Edge Functions. Direct client
+queries follow whatever shape `supabase-js` already returns
 (`{ data, error }`) -- no extra wrapping needed there.
 
 ## Success response
@@ -42,9 +42,8 @@ This document defines the response shape for (2). Direct client queries
 ```
 
 - `error.code` is a stable, machine-readable `snake_case` string the
-  frontend can switch on. `error.message` is a human-readable string safe
-  to show directly to the user (never leak internal details like SQL
-  errors or stack traces here).
+  frontend can switch on. `error.message` is safe to display directly; never
+  return SQL errors, constraint names or stack traces to the client.
 - HTTP status follows the error's nature:
   - `400` -- validation error (bad input shape, invalid domain, etc.)
   - `401` -- not authenticated
@@ -63,7 +62,11 @@ This document defines the response shape for (2). Direct client queries
 | `not_verified` | Account exists but email isn't verified yet |
 | `unsupported_account_type` | The domain resolves to an organisation type that cannot join the MVP |
 | `forbidden` | A protected account/profile field cannot be changed by the client |
-| `blocked` | Action blocked due to a block relationship |
+| `invalid_request` | Required fields or request JSON are invalid |
+| `unauthorized` | The caller is not signed in |
+| `method_not_allowed` | The function only accepts the documented HTTP method |
+| `conflict` | The request conflicts with an existing record |
+| `request_failed` | A safe generic error for an unexpected database failure |
 | `already_connected` | Connection request rejected -- already connected |
 | `not_connected` | Private message rejected -- the two users are no longer connected (history stays readable) |
 | `request_pending` | Duplicate connection/join request |
@@ -79,8 +82,9 @@ This document defines the response shape for (2). Direct client queries
 Blocks are deliberately reported as `forbidden`, not `blocked`, so a
 blocked user can't tell -- see `docs/backend/moderation.md`.
 
-Add new codes here as each phase's Edge Functions are implemented --
-this table is the shared contract frontend can rely on across phases.
+Database functions may still surface SQLSTATE/constraint errors through
+direct PostgREST calls. The stable JSON envelope applies to the Edge Function
+routes listed below.
 
 ## Naming
 
@@ -91,3 +95,25 @@ e.g. `POST /functions/v1/create-activity`,
 Matching suggestions are available at `POST /functions/v1/refresh-suggestions`.
 The route returns at most three ranked results and rejects signed-out or
 unverified users.
+
+## Current Edge Function routes
+
+The current frontend integration uses these authenticated POST routes:
+
+| Route | Success status | Purpose |
+|---|---:|---|
+| `/functions/v1/create-activity` | `201` | Create a verified user's activity after validating tags, area and time window. |
+| `/functions/v1/create-official-event` | `201` | Create an organisation event subject to organisation-admin RLS and area validation. |
+| `/functions/v1/rsvp-to-event` | `200` | Create or update the caller's `going`/`interested` RSVP. |
+| `/functions/v1/refresh-suggestions` | `200` | Return at most three deterministic matching suggestions. |
+
+All four routes return the documented success/error envelope. The first
+three routes can also be exercised through direct RLS-protected PostgREST
+calls during local development when the Edge Function runtime is not
+running. Hosted environments should deploy and use the function routes. No
+route accepts a service-role key from the browser.
+
+The map and calendar do not have custom API routes: they call the
+`active_map_points` RPC and RLS-filtered `activities`, `activity_participants`,
+`official_events` and `event_rsvps` queries directly. Realtime notifications
+only trigger those filtered reads again.

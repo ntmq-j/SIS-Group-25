@@ -19,8 +19,15 @@ async function invokeWithLocalFallback(functionName, body, fallback) {
   if (error.context && typeof error.context.json === 'function') {
     try {
       const responseBody = await error.context.json();
-      const message = responseBody?.error || responseBody?.message;
-      if (message) throw new Error(message);
+      const apiError = responseBody?.error;
+      const message = typeof apiError === 'string'
+        ? apiError
+        : apiError?.message || responseBody?.message;
+      if (message) {
+        const clientError = new Error(message);
+        if (typeof apiError === 'object' && apiError?.code) clientError.code = apiError.code;
+        throw clientError;
+      }
     } catch (responseError) {
       if (responseError instanceof Error && responseError.message) throw responseError;
     }
@@ -249,15 +256,38 @@ export function mapPointToFeedItem(point, currentUserName) {
     areaId: point.area_id,
     location: point.location_name ?? point.area_name ?? 'Campus meeting point',
     time: formatTimeWindow(point.starts_at, point.ends_at),
+    startTime: point.starts_at,
+    endTime: point.ends_at,
     author,
     category: point.category,
-    description: point.category ? formatCategory(point.category) : null,
+    description: point.description ?? null,
+    tags: point.tags ?? [],
     latitude: point.latitude,
     longitude: point.longitude,
     participantCount: point.participant_count,
     participantLimit: point.participant_limit,
     isCreator: point.is_creator === true,
   };
+}
+
+export function mapPointToMapItem(point, currentUserName) {
+  if (point.point_type === 'presence') {
+    return {
+      id: `presence:${point.point_id}`,
+      remoteId: point.point_id,
+      type: 'presence',
+      source: 'presence',
+      title: 'People available nearby',
+      location: point.location_name ?? point.area_name ?? 'Nearby area',
+      time: 'Available now',
+      author: 'Nearby Recess members',
+      availablePeople: point.available_people ?? 0,
+      latitude: point.latitude,
+      longitude: point.longitude,
+    };
+  }
+
+  return mapPointToFeedItem(point, currentUserName);
 }
 
 function formatTimeWindow(start, end) {

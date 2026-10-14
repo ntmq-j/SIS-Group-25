@@ -1,16 +1,50 @@
-# React + Vite
+# Recess
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Recess is a campus/workplace connection app for verified students and professionals. It lets members discover approved activities and official events, share approximate availability, and meet at public map locations within their organisation-scoped community.
 
-Currently, two official plugins are available:
+## Current scope
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Email/password authentication with approved university/company domains, email confirmation, Terms and Privacy consent, and verified profiles.
+- Supabase-backed activities, participation requests, official events, RSVPs, availability, matching, connections, blocks, reports, and realtime chat foundations.
+- Privacy-preserving realtime map: activities and approved events use public venue markers; availability is shown only as an area-level count.
+- Frontend event creation/edit/cancel, event joining, calendar data from Supabase, profile editing, Leaflet + OpenStreetMap map selection, and realtime refresh subscriptions.
 
-## React Compiler
+The app is currently an MVP. Statuses, matching, chat and moderation data are enforced by Postgres constraints, RLS policies and triggers; the browser only uses the public Supabase key.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Run locally
 
-## Expanding the Oxlint configuration
+Requirements: Node.js, Docker Desktop, and the Supabase CLI installed through this project.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```powershell
+npm ci
+Copy-Item .env.example .env
+# Fill .env with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
+npx supabase start
+npx supabase db reset
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. Local confirmation emails are available in the Supabase Mailpit UI at `http://127.0.0.1:54324`.
+
+## Verification commands
+
+```powershell
+npm run lint
+npm run build
+npm ci --ignore-scripts
+npx supabase test db
+```
+
+The database suite currently contains 386 pgTAP checks across authentication, availability, activities, events/RSVPs, realtime map, matching, blocks, reports, chat and the Phase 6 security audit.
+
+## Architecture
+
+The frontend uses Supabase Auth, PostgREST and Realtime directly for operations protected by RLS. Sensitive or validation-heavy writes use Supabase Edge Functions. See:
+
+- [Frontend/backend integration](docs/backend/frontend-integration.md)
+- [API contract](docs/backend/api-contract.md)
+- [Environment setup](docs/backend/environment-setup.md)
+- [Release checklist](docs/backend/release-checklist.md)
+- [Backend contribution guide](docs/backend/CONTRIBUTING.md)
+
+Database changes are migration-only. Never commit `.env`, a database password, or a `service_role` key.

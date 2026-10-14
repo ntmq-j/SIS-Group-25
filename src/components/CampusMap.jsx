@@ -62,6 +62,16 @@ function createCategoryPin(color, width = 28) {
   });
 }
 
+function createPresencePin(count) {
+  return L.divIcon({
+    className: 'recess-presence-pin',
+    html: `<div style="display:flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border:2px solid white;border-radius:9999px;background:#334155;color:white;font:700 12px/1 system-ui;box-shadow:0 2px 8px rgba(15,23,42,.3)">${count}</div>`,
+    iconSize: [42, 38],
+    iconAnchor: [21, 19],
+    popupAnchor: [0, -19],
+  });
+}
+
 const pinByCategory = Object.fromEntries(
   CATEGORY_OPTIONS.map(category => [
     category.id,
@@ -70,9 +80,12 @@ const pinByCategory = Object.fromEntries(
 );
 
 export default function CampusMap({ events = [] }) {
-  const visibleEvents = events.filter(event =>
-    isValidCoordinates(event.latitude, event.longitude)
+  const visiblePoints = events.filter(point =>
+    isValidCoordinates(point.latitude, point.longitude)
   );
+  const visibleEvents = visiblePoints.filter(point => point.type !== 'presence');
+  const visiblePresence = visiblePoints.filter(point => point.type === 'presence');
+  const boundsPoints = visiblePoints;
 
   // Counts per category, so the legend only lists what is actually on the map.
   const countsByCategory = visibleEvents.reduce((counts, event) => {
@@ -95,9 +108,16 @@ export default function CampusMap({ events = [] }) {
           </p>
         </div>
 
-        <span className="rounded-full bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-600">
-          {visibleEvents.length} event{visibleEvents.length === 1 ? '' : 's'}
-        </span>
+        <div className="text-right text-[11px] font-semibold text-neutral-500">
+          <span className="rounded-full bg-orange-50 px-2 py-1 text-orange-600">
+            {visibleEvents.length} event{visibleEvents.length === 1 ? '' : 's'}
+          </span>
+          {visiblePresence.length > 0 && (
+            <span className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+              {visiblePresence.length} active area{visiblePresence.length === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
       </div>
 
       {legend.length > 0 && (
@@ -137,7 +157,28 @@ export default function CampusMap({ events = [] }) {
           maxZoom={19}
         />
 
-        <FitToEvents events={visibleEvents} />
+        <FitToEvents events={boundsPoints} />
+
+        {visiblePresence.map(point => (
+          <Marker
+            key={point.id}
+            position={[point.latitude, point.longitude]}
+            icon={createPresencePin(point.availablePeople)}
+            title={`${point.availablePeople} people available near ${point.location}`}
+            alt={`${point.availablePeople} people available near ${point.location}`}
+          >
+            <Popup>
+              <div className="min-w-[170px]">
+                <p className="font-bold text-neutral-900">People nearby</p>
+                <p className="mt-1 text-xs text-neutral-500">{point.location}</p>
+                <p className="mt-1 text-xs text-neutral-600">
+                  {point.availablePeople} {point.availablePeople === 1 ? 'person is' : 'people are'} available in this area now.
+                </p>
+                <p className="mt-2 text-[10px] text-neutral-400">Approximate area count; no individual locations are shown.</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {visibleEvents.map(event => {
           const category = getCategory(event.category);

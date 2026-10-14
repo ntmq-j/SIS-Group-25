@@ -1,4 +1,4 @@
-import { Clock } from 'lucide-react';
+import { Clock, Pencil, Trash2 } from 'lucide-react';
 import Avatar from './Avatar';
 import { getCategory, toTagList } from '../lib/eventCategories';
 
@@ -72,17 +72,43 @@ export default function EventCard({ item, onOpen, onOpenProfile, onEdit, onDelet
       )}
 
       <div className="ml-10 flex items-center justify-between border-t border-neutral-100 pt-2.5">
-        <span className="text-[11px] text-neutral-400">
-          Hosted by{' '}
-          <button
-            onClick={handleProfileClick}
-            className="font-medium text-neutral-600 hover:underline cursor-pointer"
-          >
-            {item.author}
-          </button>
+        <div className="flex items-center gap-2 text-[11px] text-neutral-400">
+          <span>
+            Hosted by{' '}
+            <button
+              onClick={handleProfileClick}
+              className="font-medium text-neutral-600 hover:underline cursor-pointer"
+            >
+              {item.author}
+            </button>
           </span>
 
+          {item.isCreator && item.source === 'activity' && (
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onEdit?.(item)}
+                className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-semibold text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                aria-label={`Edit ${item.title}`}
+              >
+                <Pencil size={12} aria-hidden="true" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete?.(item.remoteId)}
+                className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-semibold text-rose-500 hover:bg-rose-50 hover:text-rose-700"
+                aria-label={`Cancel ${item.title}`}
+              >
+                <Trash2 size={12} aria-hidden="true" />
+                Cancel
+              </button>
+            </span>
+          )}
+        </div>
+
         <button
+          type="button"
           onClick={onOpen}
           className={`text-[11px] font-semibold transition-colors hover:underline ${c.textDeep}`}
         >

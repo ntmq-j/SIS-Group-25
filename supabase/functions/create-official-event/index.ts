@@ -1,12 +1,12 @@
-import { corsHeaders, json } from '../_shared/cors.ts';
+import { apiError, apiSuccess, corsHeaders, databaseError } from '../_shared/cors.ts';
 import { requireUser } from '../_shared/supabase.ts';
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (request.method !== 'POST') return apiError('method_not_allowed', 'Use POST to create an official event.', 405);
 
   const { client, user } = await requireUser(request);
-  if (!client || !user) return json({ error: 'Authentication required' }, 401);
+  if (!client || !user) return apiError('unauthorized', 'Sign in to create an official event.', 401);
 
   try {
     const body = await request.json();
@@ -30,9 +30,9 @@ Deno.serve(async (request) => {
       .select()
       .single();
 
-    if (error) return json({ error: error.message }, 400);
-    return json({ data }, 201);
+    if (error) return databaseError(error, 'Unable to create this official event.');
+    return apiSuccess(data, 201);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : 'Invalid request' }, 400);
+    return apiError('invalid_request', error instanceof SyntaxError ? 'Request body must be valid JSON.' : 'Unable to create this official event.', 400);
   }
 });
