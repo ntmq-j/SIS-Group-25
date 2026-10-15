@@ -23,11 +23,11 @@ function FitToEvents({ events }) {
     previousPoints.current = pointsKey;
 
     if (points.length > 1) {
-      map.fitBounds(points, { padding: [32, 32], maxZoom: 17 });
+      map.fitBounds(points, { padding: [32, 32], maxZoom: 17, animate: false });
     } else if (points.length === 1) {
-      map.setView(points[0], 17);
+      map.setView(points[0], 17, { animate: false });
     } else {
-      map.setView(UTS_CENTER, 16);
+      map.setView(UTS_CENTER, 16, { animate: false });
     }
   }, [events, map]);
 

@@ -31,7 +31,12 @@ select lives_ok($$
   values ('00000000-0000-0000-0000-000000000517', '00000000-0000-0000-0000-000000000001', 'Hello Recess')
 $$, 'verified user can publish a status to their organisation');
 
-select is((select count(*)::int from public.status_posts), 1, 'author can read their persisted status');
+select is((
+  select count(*)::int
+  from public.status_posts
+  where user_id = '00000000-0000-0000-0000-000000000517'
+    and body = 'Hello Recess'
+), 1, 'author can read their persisted status');
 select throws_ok($$
   insert into public.status_posts (user_id, organisation_id, body)
   values ('00000000-0000-0000-0000-000000000517', '00000000-0000-0000-0000-000000000002', 'Wrong organisation')

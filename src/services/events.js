@@ -258,9 +258,13 @@ export function subscribeToCalendarChanges(onChange) {
 }
 
 export async function joinActivity(activityId) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Authentication required');
+
   const { data, error } = await supabase
     .from('activity_participants')
-    .insert({ activity_id: activityId, status: 'pending' })
+    .insert({ activity_id: activityId, user_id: user.id, status: 'pending' })
     .select()
     .single();
   if (error) throw error;
@@ -268,8 +272,14 @@ export async function joinActivity(activityId) {
 }
 
 export function subscribeToMapChanges(onChange) {
+  // Each consumer owns its channel. Reusing one channel for the feed and an
+  // open details view makes Supabase reject the second postgres_changes
+  // registration and can blank the details page.
+  const channelId = typeof globalThis.crypto?.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const channel = supabase
-    .channel('recess-map-updates')
+    .channel(`recess-map-updates-${channelId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_participants' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'official_events' }, onChange)
@@ -305,7 +315,9 @@ export function mapPointToFeedItem(point, currentUserName) {
     tags: point.tags ?? [],
     latitude: point.latitude,
     longitude: point.longitude,
-    participantCount: point.participant_count,
+    // For user activities, participant_limit is the maximum number of
+    // additional people and the map RPC's count includes the host.
+    participantCount: official ? point.participant_count : Math.max(0, (point.participant_count ?? 0) - 1),
     participantLimit: point.participant_limit,
     isCreator: point.is_creator === true,
   };

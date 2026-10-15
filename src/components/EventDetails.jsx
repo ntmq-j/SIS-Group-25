@@ -6,7 +6,6 @@ export default function EventDetails({ event, joined, onJoin, onOpenChat }) {
 
   const c = getCategory(event.category);
   const tags = toTagList(event.tags);
-
   return (
     <>
       <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xs">
@@ -26,7 +25,7 @@ export default function EventDetails({ event, joined, onJoin, onOpenChat }) {
           )}
           {Number.isFinite(event.participantLimit) && event.participantLimit > 0 && (
             <p className="mt-3 text-xs font-medium text-neutral-500">
-              {event.participantCount ?? 0} / {event.participantLimit} going
+              {event.participantCount ?? 0} / {event.participantLimit} {event.source === 'activity' ? 'additional people going (host not included)' : 'going'}
             </p>
           )}
         </div>

@@ -17,6 +17,10 @@ export async function loadOwnProfile() {
 }
 
 export async function updateOwnProfile(patch) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error('Authentication required');
+
   const { data, error } = await supabase
     .from('profiles')
     .update({
@@ -24,6 +28,7 @@ export async function updateOwnProfile(patch) {
       bio: patch.bio?.trim() || null,
       course_or_role: patch.course_or_role?.trim() || null,
     })
+    .eq('id', user.id)
     .select(profileFields)
     .single();
   if (error) throw error;

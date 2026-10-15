@@ -11,7 +11,7 @@ export default function EventCard({ item, onOpen, onEdit, onDelete }) {
 
   return (
     <div
-      className={`rounded-2xl border border-l-[3px] border-neutral-100 bg-white p-4 transition-colors hover:border-neutral-200 ${c.left} ${c.leftHover}`}
+      className={`min-w-0 overflow-hidden rounded-2xl border border-l-[3px] border-neutral-100 bg-white p-4 transition-colors hover:border-neutral-200 ${c.left} ${c.leftHover}`}
     >
       <div className="mb-2.5 flex items-start justify-between">
         <div className="flex items-start gap-2.5">

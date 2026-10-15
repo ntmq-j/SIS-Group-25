@@ -259,7 +259,7 @@ select throws_ok(
 reset role;
 select pg_temp.login(null);
 
--- 12 open activities from 4 hosts (3 each, the per-host cap)
+-- 12 open activities from 4 hosts (3 each)
 do $$
 declare
   v_host uuid;
