@@ -37,6 +37,9 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      - name: Start isolated local Supabase
+        run: npx supabase start
+
       - name: Run browser smoke tests
         run: npm run test:e2e
 
@@ -55,9 +58,6 @@ jobs:
 
       - name: Test Edge Function CORS and request logging
         run: deno test --allow-env=ALLOWED_ORIGINS,SUPABASE_URL supabase/functions/_shared/cors.test.ts
-
-      - name: Start isolated local Supabase
-        run: npx supabase start
 
       - name: Run database and RLS tests
         run: npx supabase test db
