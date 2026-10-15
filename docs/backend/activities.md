@@ -67,7 +67,7 @@ attempt to spoof it. The database rejects the insert with:
 
 - `[invalid_time_window]` if the times are in the past, end before start, or
   span more than 4 hours;
-- `[rate_limited]` if the creator already has 3 open (unexpired,
+- `[rate_limited]` if the creator already has 10 open (unexpired,
   uncancelled) activities;
 - the usual Postgres constraint errors for a too-short/long title or an
   out-of-range `participant_limit`.
@@ -184,7 +184,7 @@ rows they could `select` anyway.
 | Prefix | User-facing meaning |
 |---|---|
 | `[invalid_time_window]` | Fix the start/end time (past, backwards, or over 4 hours). |
-| `[rate_limited]` | You already have 3 open activities, or you've sent 10 join requests in the last hour. |
+| `[rate_limited]` | You already have 10 open activities, or you've sent 10 join requests in the last hour. |
 | `[activity_full]` | This activity is already at its participant limit. |
 | `[activity_cancelled]` | This activity has been cancelled. |
 | `[expired]` | This activity has already ended. |
@@ -199,7 +199,7 @@ Before opening a pull request:
 
 1. Apply migrations with `npx supabase db reset` while Docker is running.
 2. Confirm a too-long (>4h) or backwards time window is rejected.
-3. Confirm a 4th open activity from the same creator is rate-limited.
+3. Confirm a 10th open activity from the same creator is allowed and an 11th is rate-limited.
 4. Confirm the creator cannot request to join their own activity.
 5. Confirm capacity, cancellation and expiry are all enforced on join
    requests and on edits.

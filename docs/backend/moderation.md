@@ -92,7 +92,7 @@ show public-meetup safety guidance alongside it.
 | Messages | 20 a minute | `guard_message_write()` |
 | Activity join requests | 10 an hour | `guard_activity_participant_write()` |
 | Reports | 5 an hour | `guard_report_write()` |
-| Activity creation | 3 open at once | `guard_activity_write()` (Phase 3) |
+| Activity creation | 10 open at once | `guard_activity_write()` (Phase 3) |
 
 Connection-request limits are part of the Phase 4 connections work.
 

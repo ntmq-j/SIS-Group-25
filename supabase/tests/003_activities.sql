@@ -9,7 +9,7 @@
 -- capacity/rate-limit logic behaves, not just that it exists.
 
 begin;
-select plan(48);
+select plan(51);
 
 create or replace function pg_temp.create_test_user(
   p_email text,
@@ -46,6 +46,7 @@ select pg_temp.create_test_user('bob@student.uts.edu.au', 'Bob') as bob_id \gset
 select pg_temp.create_test_user('carol@student.uts.edu.au', 'Carol') as carol_id \gset
 select pg_temp.create_test_user('dave@student.uts.edu.au', 'Dave', false) as dave_id \gset
 select pg_temp.create_test_user('erin@student.uts.edu.au', 'Erin') as erin_id \gset
+select pg_temp.create_test_user('hostcap@student.uts.edu.au', 'Host cap') as hostcap_id \gset
 
 -- Library area from seed.sql.
 \set library_area '00000000-0000-0000-0000-000000000201'
@@ -159,7 +160,47 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 13-14. Visibility: verified users see it, unverified users don't.
+-- 13-15. A verified creator may have ten open activities, but not eleven.
+-- ---------------------------------------------------------------------
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'hostcap_id', true);
+
+select lives_ok(
+  $$ do $body$
+  declare
+    i int;
+  begin
+    for i in 1..10 loop
+      insert into public.activities (area_id, title, category, start_time, end_time, participant_limit)
+      values ('00000000-0000-0000-0000-000000000201', format('Host cap activity %s', i), 'study_session',
+              now() + interval '10 minutes', now() + interval '70 minutes', 5);
+    end loop;
+  end;
+  $body$ $$,
+  'a creator can host ten open activities'
+);
+
+select is(
+  (select count(*)::int from public.activities where creator_id = :'hostcap_id'::uuid and status = 'open' and end_time > now()),
+  10,
+  'all ten hosted activities are open and unexpired'
+);
+
+select throws_ok(
+  $$ insert into public.activities (area_id, title, category, start_time, end_time, participant_limit)
+     values ('00000000-0000-0000-0000-000000000201', 'Host cap activity 11', 'study_session',
+             now() + interval '10 minutes', now() + interval '70 minutes', 5) $$,
+  'P0001',
+  '[rate_limited] You already have 10 open activities. Cancel or wait for one to finish before creating another.',
+  'an eleventh open activity is rejected'
+);
+
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+
+-- ---------------------------------------------------------------------
+-- 16-17. Visibility: verified users see it, unverified users don't.
 -- ---------------------------------------------------------------------
 
 set local role authenticated;
@@ -185,7 +226,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 15-17. Join requests: request pending, duplicate rejected, creator
+-- 18-20. Join requests: request pending, duplicate rejected, creator
 -- can't join their own activity.
 -- ---------------------------------------------------------------------
 
@@ -280,7 +321,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 18. A non-creator cannot update someone else's activity.
+-- 21. A non-creator cannot update someone else's activity.
 -- ---------------------------------------------------------------------
 
 set local role authenticated;
@@ -299,7 +340,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 19-21. Creator accepts Bob; responded_at set; capacity math updates.
+-- 22-24. Creator accepts Bob; responded_at set; capacity math updates.
 -- ---------------------------------------------------------------------
 
 set local role authenticated;
@@ -329,7 +370,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 22-23. Capacity: limit is 2 (one slot left besides Bob). Carol fills
+-- 25-26. Capacity: limit is 2 (one slot left besides Bob). Carol fills
 -- it; a further request from Erin is rejected as full.
 -- ---------------------------------------------------------------------
 
@@ -370,7 +411,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 24. Lowering participant_limit below the accepted count is rejected.
+-- 27. Lowering participant_limit below the accepted count is rejected.
 -- ---------------------------------------------------------------------
 
 set local role authenticated;
@@ -384,7 +425,7 @@ select throws_ok(
 );
 
 -- ---------------------------------------------------------------------
--- 25-27. A second activity to test decline/re-request in isolation from
+-- 28-30. A second activity to test decline/re-request in isolation from
 -- the first activity's capacity state.
 -- ---------------------------------------------------------------------
 
@@ -440,7 +481,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 28-30. Leaving, and the transition guard rejecting invalid changes.
+-- 31-33. Leaving, and the transition guard rejecting invalid changes.
 -- ---------------------------------------------------------------------
 
 set local role authenticated;
@@ -486,7 +527,7 @@ select throws_ok(
 );
 
 -- ---------------------------------------------------------------------
--- 31-33. Cancelling; further edits and join requests are then rejected.
+-- 34-36. Cancelling; further edits and join requests are then rejected.
 -- ---------------------------------------------------------------------
 
 update public.activities set status = 'cancelled' where id = :'activity2_id'::uuid;
@@ -522,7 +563,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------
--- 34-35. An expired activity (past end_time) is hidden from a
+-- 37-38. An expired activity (past end_time) is hidden from a
 -- non-participant but stays visible to the creator; no client deletes.
 -- ---------------------------------------------------------------------
 

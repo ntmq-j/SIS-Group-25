@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import {
   OSM_ATTRIBUTION,
   OSM_TILE_URL,
@@ -55,6 +55,18 @@ function LocationPicker({ position, onChange }) {
       }}
     />
   );
+}
+
+function MapViewport({ position }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (isValidCoordinates(position[0], position[1])) {
+      map.setView(position);
+    }
+  }, [map, position]);
+
+  return null;
 }
 
 export default function EventForm({
@@ -179,7 +191,7 @@ export default function EventForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`space-y-3 rounded-2xl border bg-white p-4 shadow-sm ${c.border}`}
+      className={`min-w-0 space-y-3 rounded-2xl border bg-white p-4 shadow-sm ${c.border}`}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -369,7 +381,7 @@ export default function EventForm({
         />
       </label>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
         <label className={labelClass}>
           <span className={labelTextClass}>Starts</span>
 
@@ -378,7 +390,7 @@ export default function EventForm({
             value={startTime}
             onChange={event => setStartTime(event.target.value)}
             required
-            className={field}
+            className={`${field} min-w-0`}
           />
         </label>
 
@@ -390,7 +402,7 @@ export default function EventForm({
             value={endTime}
             onChange={event => setEndTime(event.target.value)}
             required
-            className={field}
+            className={`${field} min-w-0`}
           />
         </label>
       </div>
@@ -412,11 +424,11 @@ export default function EventForm({
         </p>
 
         <MapContainer
-          key={effectiveAreaId}
           center={position}
           zoom={16}
           minZoom={2}
           maxZoom={19}
+          zoomAnimation={false}
           worldCopyJump
           scrollWheelZoom={false}
           className="isolate z-0 h-64 w-full overflow-hidden rounded-xl"
@@ -428,6 +440,7 @@ export default function EventForm({
             maxZoom={19}
           />
 
+          <MapViewport position={position} />
           <LocationPicker position={position} onChange={setPosition} />
         </MapContainer>
 

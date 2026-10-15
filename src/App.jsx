@@ -158,14 +158,20 @@ export default function App() {
   }, [session, refreshRemoteFeed]);
 
   useEffect(() => {
-    if (!session || page !== 'event' || selectedEvent?.source !== 'official_event' || !selectedEvent.remoteId) return undefined;
+    if (!session || page !== 'event' || !selectedEvent?.source || !selectedEvent.remoteId) return undefined;
     let active = true;
-    const refreshRsvp = async () => {
+    const refreshEventDetails = async () => {
       try {
-        const [status, info] = await Promise.all([
-          loadMyEventParticipation('official_event', selectedEvent.remoteId),
-          loadOfficialEventRsvpInfo(selectedEvent.remoteId),
-        ]);
+        const statusPromise = loadMyEventParticipation(selectedEvent.source, selectedEvent.remoteId);
+        const infoPromise = selectedEvent.source === 'official_event'
+          ? loadOfficialEventRsvpInfo(selectedEvent.remoteId)
+          : loadActiveMapPoints().then((points) => {
+            const point = points.find((item) => item.point_type === 'activity' && item.point_id === selectedEvent.remoteId);
+            return point
+              ? { participantCount: Math.max(0, point.participant_count - 1), participantLimit: point.participant_limit }
+              : {};
+          });
+        const [status, info] = await Promise.all([statusPromise, infoPromise]);
         if (!active) return;
         setJoined(status);
         setSelectedEvent((current) => current?.remoteId === selectedEvent.remoteId ? { ...current, ...info } : current);
@@ -173,8 +179,8 @@ export default function App() {
         if (active) setEventError(error?.message ?? 'Unable to refresh this event.');
       }
     };
-    const initialRefresh = window.setTimeout(() => { void refreshRsvp(); }, 0);
-    const unsubscribe = subscribeToMapChanges(() => { void refreshRsvp(); });
+    const initialRefresh = window.setTimeout(() => { void refreshEventDetails(); }, 0);
+    const unsubscribe = subscribeToMapChanges(() => { void refreshEventDetails(); });
     return () => {
       active = false;
       window.clearTimeout(initialRefresh);
@@ -365,8 +371,8 @@ export default function App() {
           ) : page === 'profile' ? (
             <Profile />
           ) : (
-          <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
-            <div className="space-y-3">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
+            <div className="min-w-0 space-y-3">
               <PresenceStrip
                 activeAreas={mapPoints.filter((point) => point.type === 'presence').length}
               />
