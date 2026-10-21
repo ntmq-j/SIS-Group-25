@@ -90,11 +90,11 @@ export default function EventForm({
   const [endTime, setEndTime] = useState(() =>
     initialData?.endTime ? toLocalDateTime(new Date(initialData.endTime)) : toLocalDateTime(new Date(Date.now() + 90 * 60 * 1000))
   );
-  const [position, setPosition] = useState(
-    initialData?.latitude && initialData?.longitude 
-      ? [initialData.latitude, initialData.longitude] 
-      : UTS_CENTER
-  );
+  const [position, setPosition] = useState(() => {
+    if (isValidCoordinates(initialData?.latitude, initialData?.longitude)) return [initialData.latitude, initialData.longitude];
+    const anchor = areas.find(area => area.id === initialData?.areaId)?.locations ?? areas[0]?.locations;
+    return isValidCoordinates(anchor?.latitude, anchor?.longitude) ? [anchor.latitude, anchor.longitude] : UTS_CENTER;
+  });
   const c = getCategory(category);
   const field = `${inputBase} ${c.focus}`;
   const effectiveAreaId = areaId || areas[0]?.id || '';

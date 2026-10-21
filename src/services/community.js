@@ -212,9 +212,9 @@ export async function loadConversations() {
 export async function loadMessages(conversationId) {
   const { data, error } = await supabase.from('messages')
     .select('id, conversation_id, sender_id, body, created_at, deleted_at')
-    .eq('conversation_id', conversationId).order('created_at').limit(200);
+    .eq('conversation_id', conversationId).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(200);
   if (error) throw error;
-  const rows = data ?? [];
+  const rows = (data ?? []).reverse();
   const ids = [...new Set(rows.map((row) => row.sender_id))];
   const { data: profiles, error: profileError } = ids.length
     ? await supabase.from('profiles').select('id, display_name').in('id', ids)
@@ -240,9 +240,9 @@ export async function deleteMessage(messageId) {
 }
 
 export function subscribeToMessages(conversationId, onChange) {
-  const channel = supabase.channel(`recess-messages-${conversationId}`)
+  const channel = supabase.channel(`recess-messages-${conversationId}-${crypto.randomUUID()}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, onChange)
-    .subscribe();
+    .subscribe((status) => { if (status === 'SUBSCRIBED') onChange(); });
   return () => { void supabase.removeChannel(channel); };
 }
 

@@ -154,14 +154,14 @@ export async function loadCalendarEvents() {
     eventIds.length
       ? supabase
         .from('official_events')
-        .select('id, title, description, location_id, area_id, latitude, longitude, start_time, end_time, status, locations(name), areas(name), organisations(name)')
+        .select('id, title, description, location_id, area_id, latitude, longitude, participant_limit, start_time, end_time, status, locations(name), areas(name), organisations(name)')
         .in('id', eventIds)
         .gte('end_time', new Date().toISOString())
       : Promise.resolve({ data: [], error: null }),
     activityIds.length
       ? supabase
         .from('activities')
-        .select('id, title, description, category, location_label, latitude, longitude, start_time, end_time, status, areas(name, locations(name)), creator:profiles!creator_id(display_name)')
+        .select('id, title, description, category, tags, participant_limit, area_id, location_label, latitude, longitude, start_time, end_time, status, areas(name, locations(name)), creator:profiles!creator_id(display_name)')
         .in('id', activityIds)
         .eq('status', 'open')
         .gte('end_time', new Date().toISOString())
@@ -200,6 +200,13 @@ export async function loadCalendarEvents() {
       id: `activity:${activity.id}`,
       remoteId: activity.id,
       eventType: 'activity',
+      source: 'activity',
+      areaId: activity.area_id,
+      category: activity.category,
+      tags: activity.tags ?? [],
+      participantLimit: activity.participant_limit,
+      latitude: activity.latitude,
+      longitude: activity.longitude,
       title: activity.title,
       description: activity.description,
       location: activity.location_label ?? area?.name ?? area?.locations?.name ?? 'Campus meeting point',

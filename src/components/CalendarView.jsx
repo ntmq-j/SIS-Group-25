@@ -6,7 +6,7 @@ import {
   subscribeToCalendarChanges,
 } from '../services/events';
 
-export default function CalendarView() {
+export default function CalendarView({ onEditEvent }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -106,6 +106,8 @@ export default function CalendarView() {
                   </div>
                 </div>
 
+                <div className="flex shrink-0 flex-wrap gap-2">
+                {event.isCreator && event.eventType === 'activity' && <button type="button" onClick={() => onEditEvent?.(event)} className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-100">Edit event</button>}
                 <button
                   type="button"
                   onClick={() => handleLeave(event)}
@@ -118,6 +120,7 @@ export default function CalendarView() {
                       ? 'Cancel event'
                       : event.eventType === 'official_event' ? 'Cancel RSVP' : 'Leave event'}
                 </button>
+                </div>
               </div>
             </article>
           ))}

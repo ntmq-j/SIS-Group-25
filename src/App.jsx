@@ -6,6 +6,8 @@ import StatusInput from './components/StatusInput';
 import StatusCard from './components/StatusCard';
 import EventCard from './components/EventCard';
 import LegalPage from './components/LegalPage';
+import PasswordRecovery from './components/PasswordRecovery';
+import { useNotifications } from './hooks/useNotifications';
 
 const EventForm = lazy(() => import('./components/EventForm'));
 const EventDetails = lazy(() => import('./components/EventDetails'));
@@ -38,6 +40,7 @@ export default function App() {
   const [page, setPage] = useState(() => {
     if (window.location.pathname === '/terms') return 'terms';
     if (window.location.pathname === '/privacy') return 'privacy';
+    if (window.location.pathname === '/auth/reset-password' || new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery') return 'recovery';
     const requestedAuthMode = new URLSearchParams(window.location.search).get('auth');
     if (requestedAuthMode === 'signin' || requestedAuthMode === 'signup') return 'auth';
     return 'landing';
@@ -47,6 +50,9 @@ export default function App() {
   ));
   const [legalReturnPage, setLegalReturnPage] = useState('landing');
   const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const { counts: notifications, error: notificationError } = useNotifications(session?.user?.id);
+  const [safetyTargetId, setSafetyTargetId] = useState('');
   // Feed events come from the privacy-preserving active_map_points RPC. Do
   // not seed fake events into a signed-in user's production feed.
   const [feed, setFeed] = useState([]);
@@ -94,19 +100,25 @@ export default function App() {
         const { error } = await supabase.auth.getUser();
         if (error) {
           await supabase.auth.signOut();
-          if (mounted) setPage('landing');
+          if (mounted) { setPage((current) => current === 'recovery' ? current : 'landing'); setAuthReady(true); }
           return;
         }
       }
       setSession(currentSession);
-      if (currentSession) setPage('feed');
+      setAuthReady(true);
+      if (currentSession) setPage((current) => ['recovery', 'terms', 'privacy'].includes(current) ? current : 'feed');
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
-      if (nextSession) setPage('feed');
+      if (event === 'PASSWORD_RECOVERY') {
+        window.history.replaceState({}, '', '/auth/reset-password');
+        setPage('recovery');
+      } else if (nextSession) setPage((current) => (
+        ['landing', 'auth'].includes(current) ? 'feed' : current
+      ));
       else setPage((currentPage) => (
-        currentPage === 'terms' || currentPage === 'privacy' || currentPage === 'auth'
+        ['terms', 'privacy', 'auth', 'recovery'].includes(currentPage)
           ? currentPage
           : 'landing'
       ));
@@ -298,8 +310,12 @@ export default function App() {
   };
 
   const handleEditEvent = (item) => {
+    if (!item.isCreator || (item.source ?? item.eventType) !== 'activity') return;
+    setEventError(null);
     setEditingEvent(item);
-    setShowEventForm(true); 
+    setShowEventForm(true);
+    setPage('feed');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenActivityChat = (activityId) => {
@@ -332,6 +348,7 @@ export default function App() {
   };
 
   if (page === 'terms' || page === 'privacy') return <LegalPage type={page} onBack={closeLegal} />;
+  if (page === 'recovery') return <PasswordRecovery session={session} ready={authReady} onComplete={() => navigate('feed', '/')} onBack={() => { setAuthMode('signin'); navigate('auth', '/?auth=signin'); }} />;
 
   if (page === 'landing') {
     return (
@@ -352,24 +369,26 @@ export default function App() {
           page={page}
           onBack={() => { setChatActivityId(null); setPage('feed'); }}
           showEventForm={showEventForm}
-          onToggle={() => { setEventError(null); setShowEventForm((visible) => !visible); }}
+          onToggle={() => { setEventError(null); setEditingEvent(null); setShowEventForm((visible) => !visible); }}
           onNavigate={(nextPage) => { if (nextPage !== 'chat') setChatActivityId(null); setPage(nextPage); }}
           onSignOut={handleSignOut}
+          notifications={notifications}
         />
         {signOutError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{signOutError}</p>}
+        {notificationError && <p role="alert" className="mb-3 text-xs text-amber-700">Notifications unavailable: {notificationError}</p>}
 
         <Suspense fallback={<p className="rounded-xl bg-white p-6 text-sm text-neutral-500">Loading Recess…</p>}>
           {page === 'calendar' ? (
-            <CalendarView />
-          ) : ['matching', 'connections', 'requests', 'chat', 'preferences', 'admin'].includes(page) ? (
-            <CommunityHub initialTab={page} currentUserId={session?.user?.id} initialActivityId={chatActivityId} />
+            <CalendarView onEditEvent={handleEditEvent} />
+          ) : ['matching', 'connections', 'requests', 'chat', 'admin'].includes(page) ? (
+            <CommunityHub key={`${page}:${chatActivityId ?? ''}`} initialTab={page} currentUserId={session?.user?.id} initialActivityId={chatActivityId} notifications={notifications} onOpenSafety={(userId) => { setSafetyTargetId(userId); setPage('profile'); }} />
           ) : page === 'event' ? (
             <>
               {eventError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
               <EventDetails event={currentEvent} joined={joined} onJoin={handleJoinEvent} onOpenChat={handleOpenActivityChat} />
             </>
           ) : page === 'profile' ? (
-            <Profile />
+            <Profile safetyTargetId={safetyTargetId} />
           ) : (
           <div className="grid min-w-0 gap-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
             <div className="min-w-0 space-y-3">
@@ -378,8 +397,9 @@ export default function App() {
               />
               {eventError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{eventError}</p>}
               {statusError && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{statusError}</p>}
-              {showEventForm && (
+              {showEventForm && (areas.length ? (
                 <EventForm
+                  key={editingEvent?.remoteId ?? 'new'}
                   initialData={editingEvent}
                   areas={areas}
                   onSubmit={handlePublishEvent}
@@ -389,7 +409,7 @@ export default function App() {
                   }}
                   submitting={publishing}
                 />
-              )}
+              ) : <p role="status" className="rounded-xl bg-white p-4 text-sm text-neutral-500">Loading campus areas…</p>)}
               
 
               <StatusInput onPost={handlePostStatus} />
