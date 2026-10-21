@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, Briefcase, Edit3, Mail, Save, X } from 'lucide-react';
 import { loadOwnProfile, updateOwnProfile } from '../services/profiles';
+import { ModerationPanel, PreferencesPanel } from './CommunityHub';
 
 const emptyProfile = {
   display_name: '',
@@ -10,7 +11,8 @@ const emptyProfile = {
   organisations: null,
 };
 
-export default function Profile() {
+export default function Profile({ safetyTargetId = '' }) {
+  const [tab, setTab] = useState(safetyTargetId ? 'safety' : 'profile');
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(emptyProfile);
   const [formData, setFormData] = useState(emptyProfile);
@@ -73,10 +75,15 @@ export default function Profile() {
   const accountType = profile.account_type === 'student' ? 'Student' : 'Professional';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-        <div className="px-8 pb-8">
-          <div className="mb-6 flex items-end justify-between pt-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-2 sm:p-6">
+      <nav aria-label="Profile settings" className="flex gap-1 overflow-x-auto rounded-2xl border border-neutral-100 bg-white p-1.5">
+        {[['profile', 'Profile details'], ['preferences', 'Availability & interests'], ['safety', 'Safety']].map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)} className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold ${tab === value ? 'bg-orange-600 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}>{label}</button>)}
+      </nav>
+      {tab === 'preferences' && <PreferencesPanel />}
+      {tab === 'safety' && <ModerationPanel key={safetyTargetId} targetUserId={safetyTargetId} />}
+      {tab === 'profile' && <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="px-4 pb-6 sm:px-8 sm:pb-8">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3 pt-6">
             <div className="flex h-32 w-32 items-center justify-center rounded-2xl border border-slate-100 bg-white p-2 shadow-md">
               <div className="flex h-full w-full items-center justify-center rounded-xl bg-orange-600 text-3xl font-bold text-white">
                 {(profile.display_name || user?.email || '?').charAt(0).toUpperCase()}
@@ -107,7 +114,7 @@ export default function Profile() {
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">{profile.display_name || 'Recess member'}</h1>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500"><Mail size={14} className="text-slate-400" />{user?.email}</p>
+                <p className="mt-1 flex items-center gap-1.5 break-all text-sm text-slate-500"><Mail size={14} className="shrink-0 text-slate-400" />{user?.email}</p>
               </div>
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Bio</h3>
@@ -146,7 +153,7 @@ export default function Profile() {
             </form>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
