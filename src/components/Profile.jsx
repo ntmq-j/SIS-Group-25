@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Briefcase, Edit3, Mail, Save, X } from 'lucide-react';
+import { BookOpen, Briefcase, Edit3, LogOut, Mail, Save, X } from 'lucide-react';
 import { loadOwnProfile, updateOwnProfile } from '../services/profiles';
 import { ModerationPanel, PreferencesPanel } from './CommunityHub';
 
@@ -11,7 +11,7 @@ const emptyProfile = {
   organisations: null,
 };
 
-export default function Profile({ safetyTargetId = '' }) {
+export default function Profile({ safetyTargetId = '', onSignOut, signingOut = false, signOutError }) {
   const [tab, setTab] = useState(safetyTargetId ? 'safety' : 'profile');
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(emptyProfile);
@@ -63,14 +63,6 @@ export default function Profile({ safetyTargetId = '' }) {
     }
   };
 
-  if (loading) {
-    return <div className="mx-auto max-w-4xl p-6 text-center text-sm text-slate-400">Loading your profile…</div>;
-  }
-
-  if (error && !user) {
-    return <p role="alert" className="mx-auto max-w-4xl rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</p>;
-  }
-
   const organisationName = profile.organisations?.name || 'Organisation pending';
   const accountType = profile.account_type === 'student' ? 'Student' : 'Professional';
 
@@ -79,6 +71,9 @@ export default function Profile({ safetyTargetId = '' }) {
       <nav aria-label="Profile settings" className="flex gap-1 overflow-x-auto rounded-2xl border border-neutral-100 bg-white p-1.5">
         {[['profile', 'Profile details'], ['preferences', 'Availability & interests'], ['safety', 'Safety']].map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)} className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold ${tab === value ? 'bg-orange-600 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}>{label}</button>)}
       </nav>
+      {loading ? <p role="status" className="p-6 text-center text-sm text-slate-400">Loading your profile…</p> : error && !user ? (
+        <p role="alert" className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</p>
+      ) : <>
       {tab === 'preferences' && <PreferencesPanel />}
       {tab === 'safety' && <ModerationPanel key={safetyTargetId} targetUserId={safetyTargetId} />}
       {tab === 'profile' && <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -154,6 +149,20 @@ export default function Profile({ safetyTargetId = '' }) {
           )}
         </div>
       </div>}
+      </>}
+      <section aria-label="Account actions" className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">Account</h2>
+            <p className="mt-1 text-xs text-neutral-500">Sign out of your Recess account.</p>
+          </div>
+          <button type="button" onClick={onSignOut} disabled={signingOut} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-wait disabled:opacity-60">
+            <LogOut size={16} aria-hidden="true" />
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
+        {signOutError && <p role="alert" className="mt-3 text-sm text-red-700">{signOutError}</p>}
+      </section>
     </div>
   );
 }

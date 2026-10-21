@@ -68,6 +68,7 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [statusError, setStatusError] = useState(null);
   const [signOutError, setSignOutError] = useState(null);
+  const [signingOut, setSigningOut] = useState(false);
   const [chatActivityId, setChatActivityId] = useState(null);
 
   const refreshRemoteFeed = useCallback(async () => {
@@ -342,9 +343,17 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
+    if (signingOut) return;
     setSignOutError(null);
-    const { error } = await supabase.auth.signOut();
-    if (error) setSignOutError(error.message || 'Unable to sign out. Please try again.');
+    setSigningOut(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      setSignOutError(error.message || 'Unable to sign out. Please try again.');
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   if (page === 'terms' || page === 'privacy') return <LegalPage type={page} onBack={closeLegal} />;
@@ -371,10 +380,8 @@ export default function App() {
           showEventForm={showEventForm}
           onToggle={() => { setEventError(null); setEditingEvent(null); setShowEventForm((visible) => !visible); }}
           onNavigate={(nextPage) => { if (nextPage !== 'chat') setChatActivityId(null); setPage(nextPage); }}
-          onSignOut={handleSignOut}
           notifications={notifications}
         />
-        {signOutError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{signOutError}</p>}
         {notificationError && <p role="alert" className="mb-3 text-xs text-amber-700">Notifications unavailable: {notificationError}</p>}
 
         <Suspense fallback={<p className="rounded-xl bg-white p-6 text-sm text-neutral-500">Loading Recess…</p>}>
@@ -388,7 +395,7 @@ export default function App() {
               <EventDetails event={currentEvent} joined={joined} onJoin={handleJoinEvent} onOpenChat={handleOpenActivityChat} />
             </>
           ) : page === 'profile' ? (
-            <Profile safetyTargetId={safetyTargetId} />
+            <Profile safetyTargetId={safetyTargetId} onSignOut={handleSignOut} signingOut={signingOut} signOutError={signOutError} />
           ) : (
           <div className="grid min-w-0 gap-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
             <div className="min-w-0 space-y-3">
