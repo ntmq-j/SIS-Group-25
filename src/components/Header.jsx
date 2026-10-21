@@ -1,10 +1,10 @@
-import { CalendarDays, Compass, LogOut, MessageCircle, Plus, UserRound, X } from 'lucide-react';
+import { CalendarDays, Compass, MessageCircle, Plus, UserRound, X } from 'lucide-react';
 import BrandMark from './BrandMark';
 import NotificationBadge from './NotificationBadge';
 
 const navItemClass = 'inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium leading-5 text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-2.5 sm:text-xs';
 
-export default function Header({ page, onBack, showEventForm, onToggle, onNavigate, onSignOut, notifications = {} }) {
+export default function Header({ page, onBack, showEventForm, onToggle, onNavigate, notifications = {} }) {
     return (
       <header className="sticky top-4 z-10 mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-neutral-100 bg-white px-3 py-2.5 shadow-sm sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -90,15 +90,6 @@ export default function Header({ page, onBack, showEventForm, onToggle, onNaviga
             </button>}
             </>
           )}
-          <button
-            type="button"
-            onClick={onSignOut}
-            aria-label="Sign out"
-            className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium leading-5 text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-2.5 sm:text-xs"
-          >
-            <LogOut size={14} aria-hidden="true" />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
         </nav>
       </header>
     );
