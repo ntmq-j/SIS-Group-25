@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { supabase } from '../lib/supabaseClient';
 import BrandMark from './BrandMark';
+
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim();
 
 export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
   const [isSignUp, setIsSignUp] = useState(mode === 'signup');
@@ -15,18 +18,30 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const captchaRef = useRef(null);
+
+  const resetCaptcha = () => {
+    setCaptchaToken('');
+    captchaRef.current?.reset();
+  };
 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
+    if (turnstileSiteKey && !captchaToken) {
+      setErrorMsg('Complete the security check before continuing.');
+      return;
+    }
+    setLoading(true);
 
     try {
       if (forgotPassword) {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
           redirectTo: `${window.location.origin}/auth/reset-password`,
+          captchaToken: turnstileSiteKey ? captchaToken : undefined,
         });
         if (error) throw error;
         setSuccessMsg('If an account exists for this email, you will receive a password reset link. Check your inbox and spam folder.');
@@ -37,6 +52,7 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
+            captchaToken: turnstileSiteKey ? captchaToken : undefined,
             data: {
               display_name: fullName.trim(),
               terms_accepted: termsAccepted,
@@ -56,6 +72,7 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
           password,
+          options: { captchaToken: turnstileSiteKey ? captchaToken : undefined },
         });
         if (error) throw error;
       }
@@ -67,11 +84,16 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
         setErrorMsg('Use an approved university or organisation email address.');
       } else if (message.includes('[consent_required]')) {
         setErrorMsg('Accept the Terms and Privacy Policy to continue.');
+      } else if (message.toLowerCase().includes('captcha')) {
+        setErrorMsg(turnstileSiteKey
+          ? 'The security check failed or expired. Please complete it again.'
+          : 'CAPTCHA protection is enabled in Supabase, but the Recess Turnstile site key is not configured.');
       } else {
         setErrorMsg(message);
       }
     } finally {
       setLoading(false);
+      resetCaptcha();
     }
   };
 
@@ -150,7 +172,7 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
             />
           </div>}
 
-          {!isSignUp && !forgotPassword && <button type="button" onClick={() => { setForgotPassword(true); setErrorMsg(null); setSuccessMsg(null); setPassword(''); }} className="text-xs font-semibold text-orange-700 hover:underline">Forgot password?</button>}
+          {!isSignUp && !forgotPassword && <button type="button" onClick={() => { resetCaptcha(); setForgotPassword(true); setErrorMsg(null); setSuccessMsg(null); setPassword(''); }} className="text-xs font-semibold text-orange-700 hover:underline">Forgot password?</button>}
 
           {isSignUp && (
             <div className="space-y-2 rounded-lg bg-neutral-50 p-3 text-xs text-neutral-600">
@@ -203,10 +225,24 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
             </div>
           )}
 
+          {turnstileSiteKey && (
+            <div className="space-y-1">
+              <Turnstile
+                ref={captchaRef}
+                siteKey={turnstileSiteKey}
+                options={{ theme: 'light', language: 'en' }}
+                onSuccess={(token) => { setCaptchaToken(token); setErrorMsg(null); }}
+                onExpire={() => { setCaptchaToken(''); setErrorMsg('The security check expired. Please complete it again.'); }}
+                onError={() => { setCaptchaToken(''); setErrorMsg('The security check could not load. Check your connection and try again.'); }}
+              />
+              <p className="text-[11px] text-neutral-500">Complete the security check to continue.</p>
+            </div>
+          )}
+
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (Boolean(turnstileSiteKey) && !captchaToken)}
             
             className="w-full bg-orange-600 text-white font-medium py-2.5 rounded-xl hover:bg-orange-700 transition text-sm shadow-sm"
           >
@@ -218,7 +254,7 @@ export default function Auth({ mode, onBack, onSuccess, onOpenLegal }) {
           {forgotPassword ? 'Remember your password? ' : isSignUp ? 'Already have an account? ' : "Don't have an account? "}
           <button 
             type="button"
-            onClick={() => { if (forgotPassword) { setForgotPassword(false); setIsSignUp(false); } else setIsSignUp(!isSignUp); setErrorMsg(null); setSuccessMsg(null); }}
+            onClick={() => { resetCaptcha(); if (forgotPassword) { setForgotPassword(false); setIsSignUp(false); } else setIsSignUp(!isSignUp); setErrorMsg(null); setSuccessMsg(null); }}
             className="text-orange-600 font-semibold hover:underline"
           >
             {forgotPassword || isSignUp ? 'Sign In' : 'Sign Up'}
