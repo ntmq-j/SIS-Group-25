@@ -26,7 +26,10 @@ export default function Header({ page, onBack, showEventForm, onToggle, onNaviga
             </button>
           )}
         </div>
-        <nav aria-label="Primary navigation" className="flex flex-wrap items-center justify-end gap-0.5 sm:gap-1">
+        <nav
+          aria-label="Primary navigation"
+          className="flex w-full flex-wrap items-center justify-center gap-0.5 sm:ml-auto sm:w-auto sm:justify-end sm:gap-1"
+        >
           {(
             <>
             <button

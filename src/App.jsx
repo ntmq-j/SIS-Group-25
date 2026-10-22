@@ -71,6 +71,10 @@ export default function App() {
   const [signingOut, setSigningOut] = useState(false);
   const [chatActivityId, setChatActivityId] = useState(null);
 
+  const statusItems = feed.filter((item) => item.type === 'status');
+  const eventItems = feed.filter((item) => item.type === 'event');
+  const visibleEventItems = eventItems.filter((item) => selectedCategory === 'all' || item.category === selectedCategory);
+
   const refreshRemoteFeed = useCallback(async () => {
     if (!session) return;
     setLoadingFeed(true);
@@ -421,55 +425,72 @@ export default function App() {
 
               <StatusInput onPost={handlePostStatus} />
 
-              {/* Event Category Filter Bar */}
-              <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none">
-                {[
-                  { label: 'All', value: 'all' },
-                  { label: 'Study session', value: 'study_session' },
-                  { label: 'Coffee break', value: 'coffee_break' },
-                  { label: 'Lunch', value: 'lunch' },
-                  { label: 'Walk', value: 'walk' },
-                  { label: 'Casual game', value: 'casual_game' },
-                  { label: 'Group discussion', value: 'group_discussion' },
-                ].map((cat) => (
-                  <button
-                    key={cat.value}
-                    onClick={() => setSelectedCategory(cat.value)}
-                    className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors whitespace-nowrap ${
-                      selectedCategory === cat.value
-                        ? 'bg-orange-600 text-white shadow-sm'
-                        : 'bg-white hover:bg-neutral-100 text-neutral-600 border border-neutral-100'
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-
               <p className="px-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-400">Today's updates</p>
 
-              {loadingFeed && <p className="py-4 text-center text-xs text-neutral-400">Loading events…</p>}
-              {!loadingFeed && feed.length === 0 && <p className="py-16 text-center text-sm text-neutral-400">Nothing here yet. Post a status or host an event.</p>}
-
-              {feed
-                .filter((item) => {
-                  if (selectedCategory === 'all') return true;
-                  if (item.type === 'status') return true; // keeps status posts visible regardless of filter
-                  return item.category === selectedCategory;
-                })
-                .map((item) => item.type === 'event'
-                  ? <EventCard 
-                      key={item.id} 
-                      item={item} 
-                      onOpen={() => handleOpenEvent(item)} 
-                      onEdit={(item) => handleEditEvent(item)}
-                      onDelete={(remoteId) => handleDeleteEvent(remoteId)}
-                    />
-                  : <StatusCard key={item.id} item={item} />)}
+              {!loadingFeed && statusItems.length === 0 && <p className="py-16 text-center text-sm text-neutral-400">No status updates yet. Share what you are working on.</p>}
+              {statusItems.map((item) => <StatusCard key={item.id} item={item} />)}
             </div>
 
-            <div className="lg:sticky lg:top-6">
-              <CampusMap events={mapPoints} />
+            <div className="min-w-0 space-y-3">
+              <div className="lg:sticky lg:top-6">
+                <CampusMap events={mapPoints} />
+              </div>
+
+              <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm" aria-labelledby="upcoming-events-heading">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 id="upcoming-events-heading" className="text-sm font-bold text-neutral-900">Upcoming events</h2>
+                    <p className="mt-0.5 text-[11px] text-neutral-400">Events stay here while status updates change.</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-600">
+                    {eventItems.length} event{eventItems.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none" aria-label="Filter events by category">
+                  {[
+                    { label: 'All', value: 'all' },
+                    { label: 'Study session', value: 'study_session' },
+                    { label: 'Coffee break', value: 'coffee_break' },
+                    { label: 'Lunch', value: 'lunch' },
+                    { label: 'Walk', value: 'walk' },
+                    { label: 'Casual game', value: 'casual_game' },
+                    { label: 'Group discussion', value: 'group_discussion' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.value}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.value)}
+                      className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
+                        selectedCategory === cat.value
+                          ? 'bg-orange-600 text-white shadow-sm'
+                          : 'border border-neutral-100 bg-white text-neutral-600 hover:bg-neutral-100'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {loadingFeed && <p className="py-6 text-center text-xs text-neutral-400">Loading events…</p>}
+                {!loadingFeed && eventItems.length === 0 && <p className="py-10 text-center text-sm text-neutral-400">No upcoming events yet. Host one to get started.</p>}
+                {!loadingFeed && visibleEventItems.length > 0 && (
+                  <div className="mt-3 space-y-3">
+                    {visibleEventItems.map((item) => (
+                      <EventCard
+                        key={item.id}
+                        item={item}
+                        onOpen={() => handleOpenEvent(item)}
+                        onEdit={(eventItem) => handleEditEvent(eventItem)}
+                        onDelete={(remoteId) => handleDeleteEvent(remoteId)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {!loadingFeed && eventItems.length > 0 && visibleEventItems.length === 0 && (
+                  <p className="py-10 text-center text-sm text-neutral-400">No events match this category.</p>
+                )}
+              </section>
             </div>
           </div>
           )}
